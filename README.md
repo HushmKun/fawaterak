@@ -9,9 +9,10 @@ Use this library at your own risk.
 
 ## Status
 
-This project is in early development (`0.1.0`). The current release covers the
-foundational OAuth and HTTP layers only. Higher-level resource clients (payments,
-invoices, refunds, webhooks, etc.) are not yet implemented.
+This project is in early development (`0.2.0`). The foundational OAuth/HTTP
+layers and the core transaction client (payment methods, create/fetch/list
+transactions) are implemented. Webhooks, e-invoicing, refunds, and tokenization
+are still on the roadmap.
 
 ## Features
 
@@ -24,6 +25,13 @@ invoices, refunds, webhooks, etc.) are not yet implemented.
   Fawaterak-specific error mapping.
 - **Exception hierarchy** for network, authentication, validation, and transient
   API errors.
+- **`FawaterakClient`** with `get_payment_methods`, `create_transaction`,
+  `get_transaction`, and `list_transactions` covering the core transaction flow.
+- **Two transaction modes** — hosted checkout (`result.url`) and direct payment
+  (`result.payment_data`), with a discriminated `PaymentResult` union for card
+  redirects, reference codes (Fawry/Aman/Masary), and mobile wallets.
+- **Typed dataclass models** (`Customer`, `CartItem`, `TransactionData`, `Page`,
+  etc.) that serialize to the exact API payload shapes.
 
 ## Installation
 
@@ -40,9 +48,7 @@ uv add fawaterak
 ## Quick start
 
 ```python
-from fawaterak.config import Config
-from fawaterak.auth import TokenManager
-import requests
+from fawaterak import Config, FawaterakClient
 
 conf = Config.resolve(
 	client_id="your-client-id",
@@ -50,15 +56,9 @@ conf = Config.resolve(
 	environment="staging",  # or "production"
 )
 
-manager = TokenManager(
-	conf.client_id,
-	conf.client_secret,
-	conf.base_url,
-	requests.Session(),
-)
-
-token = manager.access_token
-print(token)
+client = FawaterakClient(config=conf)
+methods = client.get_payment_methods()
+print([method.name_en for method in methods])
 ```
 
 ## Configuration
@@ -77,6 +77,81 @@ variables. Explicit arguments always win.
 \* Either `environment` (`staging` or `production`) or a direct `base_url` must
 be provided.
 
+## Usage
+
+### Hosted checkout
+
+Omit `payment_method_id` to create a payment link and redirect the customer to
+the Fawaterak-hosted checkout page.
+
+```python
+from fawaterak import CartItem, Customer, RedirectionUrls
+
+result = client.create_transaction(
+	currency="EGP",
+	customer=Customer(
+		first_name="Ahmed",
+		last_name="Ali",
+		email="ahmed@example.com",
+	),
+	cart_items=[CartItem(name="Order total", price=100.0, quantity=1)],
+	cart_total=100.0,
+	redirection_urls=RedirectionUrls(
+		success_url="https://yoursite.com/success",
+		fail_url="https://yoursite.com/fail",
+	),
+)
+
+# result is a HostedCheckoutResult
+redirect_url = result.url
+```
+
+### Direct payment
+
+Pass a `payment_method_id` from `get_payment_methods()` to pay with a specific
+method. The response returns provider-specific data in `result.payment_data`.
+
+```python
+result = client.create_transaction(
+	currency="EGP",
+	customer=Customer(first_name="Ahmed", last_name="Ali"),
+	cart_items=[CartItem(name="Order total", price=100.0, quantity=1)],
+	cart_total=100.0,
+	payment_method_id=3,  # e.g. Fawry
+)
+
+from fawaterak import (
+	CardPaymentResult,
+	MobileWalletResult,
+	ReferenceCodeResult,
+)
+
+payment = result.payment_data
+if isinstance(payment, ReferenceCodeResult):
+	print(payment.reference_number)
+elif isinstance(payment, CardPaymentResult):
+	print(payment.redirect_to)
+elif isinstance(payment, MobileWalletResult):
+	print(payment.iso_qr)
+```
+
+### Fetch and list transactions
+
+```python
+from datetime import date
+
+transaction = client.get_transaction("550e8400-e29b-41d4-a716-446655440000")
+print(transaction.status_text)
+
+page = client.list_transactions(
+	start_date=date(2026, 1, 1),
+	end_date=date(2026, 1, 31),
+	per_page=15,
+)
+for item in page.data:
+	print(item.transaction_id, item.status_text)
+```
+
 ## Development
 
 This project uses `uv` for dependency management.
@@ -87,6 +162,9 @@ uv sync --all-extras --dev
 
 # Run tests
 uv run pytest
+
+# Run live integration tests against staging (requires real credentials)
+uv run pytest -m integration
 
 # Run linters and type checker
 uv run ruff check .

@@ -60,7 +60,6 @@ class FawaterakClient:
 		"""Return all integration-enabled payment methods for this vendor."""
 		response = self._http.request("GET", "/api/v3/getTrPaymentmethods")
 		data = response.get("data", [])
-		print("1")
 		return [PaymentMethod.from_dict(item) for item in data]
 
 	def create_transaction(
