@@ -1,17 +1,17 @@
 [project]
 name = "fawaterak" 
-version = "0.1.1"
+version = "0.2.0"
 description = "Python bindings for the Fawaterak API"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "Hussein Mukhtar", email = "hussein@hushm.me" }]
 license-files = ["LICENSE"]
+license = "AGPL-3.0-or-later"
 keywords = ["fawaterk", "api", "payments"]
 
 classifiers = [
   "Development Status :: 1 - Planning",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3",
@@ -40,6 +40,7 @@ dev = [
     "pre-commit>=4.3.0",
     "pytest>=8.4.2",
     "pytest-cov>=7.1.0",
+    "pytest-env>=1.1.5",
     "requests-mock>=1.12.0",
     "ruff>=0.16.1",
     "ty>=0.0.65",
@@ -77,3 +78,6 @@ line-ending = "auto"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = [
+  "integration: live tests that hit the Fawaterak staging API (requires real credentials)",
+]

@@ -121,7 +121,7 @@ class DirectPaymentResult(TransactionResult):
 class PaymentMethodHistoryItem:
 	"""
 	One entry in a transaction’s payment-history list.
-	
+
 	maps to https://app.fawaterk.com/documentation#models/PaymentMethodHistoryItem
 	"""
 
@@ -151,7 +151,7 @@ class PaymentMethodHistoryItem:
 class TransactionData:
 	"""
 	Full transaction details from POST /api/v3/getTransactionData.
-	
+
 	maps to https://app.fawaterk.com/documentation#models/TransactionDetail
 	"""
 
@@ -204,7 +204,7 @@ class TransactionData:
 class TransactionExportItem:
 	"""
 	One row in a paginated transaction export.
-	
+
 	maps to https://app.fawaterk.com/documentation#models/TransactionExportItem
 	"""
 
@@ -249,7 +249,7 @@ class TransactionExportItem:
 class Page(Generic[T]):
 	"""
 	Paginated response metadata.
-	
+
 	maps to https://app.fawaterk.com/documentation#models/PaginationMeta
 	"""
 
