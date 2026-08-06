@@ -49,12 +49,16 @@ dev = [
 # [project.optional-dependencies]
 # async = ["httpx"]
 
-# [project.urls]
-# homepage = ""
-# source = ""
-# issues = ""
-# changelog = ""
-# documentation = ""
+[project.urls]
+source = "https://github.com/HushmKun/fawaterak"
+issues = "https://github.com/HushmKun/fawaterak/issues"
+changelog = "https://github.com/HushmKun/fawaterak/blob/master/CHANGELOG.md"
+
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
 
 [tool.ruff]
 exclude = [
