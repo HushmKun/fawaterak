@@ -13,6 +13,7 @@ import requests_mock
 from fawaterak._http import HTTPClient
 from fawaterak.client import FawaterakClient
 from fawaterak.config import Config
+from fawaterak.exceptions import FawaterakConfigException, FawaterakWebhookException
 from fawaterak.models.common import CartItem, Customer, RedirectionUrls
 from fawaterak.models.transaction import (
 	CardPaymentResult,
@@ -21,6 +22,10 @@ from fawaterak.models.transaction import (
 	MobileWalletResult,
 	ReferenceCodeResult,
 	UnknownPaymentResult,
+)
+from fawaterak.webhooks import (
+	RefundWebhookEvent,
+	WebhookType,
 )
 
 BASE_URL = "https://api.example.com"
@@ -396,6 +401,198 @@ class TestListTransactions:
 		assert request.qs["page"] == ["2"]
 		assert request.qs["per_page"] == ["20"]
 		assert "pay_load=ORD-1001" in request.url
+
+
+class TestClientWebhooks:
+	VENDOR_KEY = "test-vendor-key"
+
+	@pytest.fixture
+	def webhook_client(self) -> FawaterakClient:
+		config = Config.resolve(
+			client_id="test-client-id",
+			client_secret="test-client-secret",
+			base_url=BASE_URL,
+			vendor_api_key=self.VENDOR_KEY,
+		)
+		http_client = HTTPClient(config.base_url, FakeTokenManager())  # ty: ignore[invalid-argument-type]
+		return FawaterakClient(config=config, http_client=http_client)
+
+	def _hmac(self, message: str) -> str:
+		import hashlib
+		import hmac
+
+		return hmac.new(
+			self.VENDOR_KEY.encode("utf-8"),
+			message.encode("utf-8"),
+			hashlib.sha256,
+		).hexdigest()
+
+	def test_parse_paid_webhook_uses_config_vendor_key(
+		self, webhook_client: FawaterakClient
+	) -> None:
+		payload = {
+			"transaction_key": "550e8400-e29b-41d4-a716-446655440000",
+			"transaction_id": 12345,
+			"payment_method": "Visa-Mastercard",
+			"status": "paid",
+		}
+		string_to_sign = (
+			"TransactionId=12345"
+			"&TransactionKey=550e8400-e29b-41d4-a716-446655440000"
+			"&PaymentMethod=Visa-Mastercard"
+		)
+		payload["transactionHashKey"] = self._hmac(string_to_sign)
+		event = webhook_client.parse_paid_webhook(payload)
+
+		assert event.status == "paid"
+		assert event.transaction_id == 12345
+		assert event.transaction_key == "550e8400-e29b-41d4-a716-446655440000"
+		assert event.payment_method == "Visa-Mastercard"
+
+	def test_parse_paid_webhook_raises_on_invalid_signature(
+		self, webhook_client: FawaterakClient
+	) -> None:
+		payload = {
+			"transaction_key": "550e8400-e29b-41d4-a716-446655440000",
+			"transaction_id": 12345,
+			"payment_method": "Visa-Mastercard",
+			"status": "paid",
+			"transactionHashKey": "invalid",
+		}
+		with pytest.raises(FawaterakWebhookException):
+			webhook_client.parse_paid_webhook(payload)
+
+	def test_parse_failed_webhook_uses_config_vendor_key(
+		self, webhook_client: FawaterakClient
+	) -> None:
+		payload = {
+			"transaction_key": "550e8400-e29b-41d4-a716-446655440000",
+			"transaction_id": 12345,
+			"payment_method": "Visa-Mastercard",
+			"errorMessage": "declined",
+		}
+		string_to_sign = (
+			"TransactionId=12345"
+			"&TransactionKey=550e8400-e29b-41d4-a716-446655440000"
+			"&PaymentMethod=Visa-Mastercard"
+		)
+		payload["hashKey"] = self._hmac(string_to_sign)
+		event = webhook_client.parse_failed_webhook(payload)
+
+		assert event.error_message == "declined"
+
+	def test_parse_failed_webhook_raises_on_invalid_signature(
+		self, webhook_client: FawaterakClient
+	) -> None:
+		payload = {
+			"transaction_key": "550e8400-e29b-41d4-a716-446655440000",
+			"transaction_id": 12345,
+			"payment_method": "Visa-Mastercard",
+			"errorMessage": "declined",
+			"hashKey": "invalid",
+		}
+		with pytest.raises(FawaterakWebhookException):
+			webhook_client.parse_failed_webhook(payload)
+
+	def test_parse_cancel_webhook_uses_config_vendor_key(
+		self, webhook_client: FawaterakClient
+	) -> None:
+		payload = {
+			"referenceId": 998877,
+			"paymentMethod": "Aman",
+			"status": "EXPIRED",
+		}
+		payload["hashKey"] = self._hmac("referenceId=998877&PaymentMethod=Aman")
+		event = webhook_client.parse_cancel_webhook(payload)
+
+		assert event.reference_id == 998877
+
+	def test_parse_cancel_webhook_raises_on_invalid_signature(
+		self, webhook_client: FawaterakClient
+	) -> None:
+		payload = {
+			"referenceId": 998877,
+			"paymentMethod": "Aman",
+			"status": "EXPIRED",
+			"hashKey": "invalid",
+		}
+		with pytest.raises(FawaterakWebhookException):
+			webhook_client.parse_cancel_webhook(payload)
+
+	def test_parse_refund_webhook_uses_config_vendor_key(
+		self, webhook_client: FawaterakClient
+	) -> None:
+		payload = {
+			"transactionId": 12345,
+			"amount": "50.00",
+			"currency": "EGP",
+			"status": 1,
+		}
+		payload["hashKey"] = self._hmac("transactionId=12345&amount=50.00&currency=EGP")
+		event = webhook_client.parse_refund_webhook(payload)
+
+		assert event.amount == "50.00"
+
+	def test_parse_refund_webhook_raises_on_invalid_signature(
+		self, webhook_client: FawaterakClient
+	) -> None:
+		payload = {
+			"transactionId": 12345,
+			"amount": "50.00",
+			"currency": "EGP",
+			"status": 1,
+			"hashKey": "invalid",
+		}
+		with pytest.raises(FawaterakWebhookException):
+			webhook_client.parse_refund_webhook(payload)
+
+	def test_parse_webhook_dispatcher_invalid_signature(
+		self, webhook_client: FawaterakClient
+	) -> None:
+		with pytest.raises(FawaterakWebhookException):
+			webhook_client.parse_webhook({"hashKey": "invalid"}, WebhookType.REFUND)
+
+	@pytest.mark.parametrize(
+		"method_name",
+		[
+			"parse_paid_webhook",
+			"parse_failed_webhook",
+			"parse_cancel_webhook",
+			"parse_refund_webhook",
+			"parse_webhook",
+		],
+	)
+	def test_all_webhook_methods_raise_when_vendor_key_missing(
+		self, method_name: str
+	) -> None:
+		config = Config.resolve(
+			client_id="test-client-id",
+			client_secret="test-client-secret",
+			base_url=BASE_URL,
+		)
+		http_client = HTTPClient(config.base_url, FakeTokenManager())  # ty: ignore[invalid-argument-type]
+		client = FawaterakClient(config=config, http_client=http_client)
+
+		method = getattr(client, method_name)
+		with pytest.raises(FawaterakConfigException):
+			if method_name == "parse_webhook":
+				method({}, WebhookType.PAID)
+			else:
+				method({})
+
+	def test_parse_webhook_dispatcher(self, webhook_client: FawaterakClient) -> None:
+		payload = {
+			"transactionId": 12345,
+			"amount": "50.00",
+			"currency": "EGP",
+			"status": 1,
+		}
+		string_to_sign = "transactionId=12345&amount=50.00&currency=EGP"
+		payload["hashKey"] = self._hmac(string_to_sign)
+
+		event = webhook_client.parse_webhook(payload, WebhookType.REFUND)
+		assert isinstance(event, RefundWebhookEvent)
+		assert event.amount == "50.00"
 
 
 @pytest.mark.integration
