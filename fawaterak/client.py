@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import platform
 from datetime import date
 from functools import cache
 from typing import Any
 
 from ._http import HTTPClient
 from .config import Config
+from .exceptions import FawaterakConfigException
 from .models.common import (
 	CartItem,
 	Customer,
@@ -24,6 +24,19 @@ from .models.transaction import (
 	TransactionData,
 	TransactionExportItem,
 	parse_payment_data,
+)
+from .webhooks import (
+	CancelWebhookEvent,
+	FailedWebhookEvent,
+	PaidWebhookEvent,
+	RefundWebhookEvent,
+	WebhooksParseResult,
+	WebhookType,
+	parse_cancel_webhook,
+	parse_failed_webhook,
+	parse_paid_webhook,
+	parse_refund_webhook,
+	parse_webhook,
 )
 
 
@@ -61,6 +74,14 @@ class FawaterakClient:
 		response = self._http.request("GET", "/api/v3/getTrPaymentmethods")
 		data = response.get("data", [])
 		return [PaymentMethod.from_dict(item) for item in data]
+
+	def _require_vendor_api_key(self) -> str:
+		if not self._config.vendor_api_key:
+			raise FawaterakConfigException(
+				"vendor_api_key is required for webhook verification. "
+				"Pass it to Config.resolve() or set FAWATERAK_VENDOR_API_KEY."
+			)
+		return self._config.vendor_api_key
 
 	def create_transaction(
 		self,
@@ -187,6 +208,30 @@ class FawaterakClient:
 			from_item=pagination.get("from"),
 			to_item=pagination.get("to"),
 		)
+
+	def parse_paid_webhook(self, payload: dict[str, Any]) -> PaidWebhookEvent:
+		"""Verify and parse a paid/pending webhook payload."""
+		return parse_paid_webhook(payload, self._require_vendor_api_key())
+
+	def parse_failed_webhook(self, payload: dict[str, Any]) -> FailedWebhookEvent:
+		"""Verify and parse a failed-payment webhook payload."""
+		return parse_failed_webhook(payload, self._require_vendor_api_key())
+
+	def parse_cancel_webhook(self, payload: dict[str, Any]) -> CancelWebhookEvent:
+		"""Verify and parse a cancel/expired webhook payload."""
+		return parse_cancel_webhook(payload, self._require_vendor_api_key())
+
+	def parse_refund_webhook(self, payload: dict[str, Any]) -> RefundWebhookEvent:
+		"""Verify and parse a refund webhook payload."""
+		return parse_refund_webhook(payload, self._require_vendor_api_key())
+
+	def parse_webhook(
+		self,
+		payload: dict[str, Any],
+		webhook_type: WebhookType,
+	) -> WebhooksParseResult:
+		"""Verify and parse a webhook payload of the given type."""
+		return parse_webhook(payload, self._require_vendor_api_key(), webhook_type)
 
 	def close(self) -> None:
 		self._http.close()
