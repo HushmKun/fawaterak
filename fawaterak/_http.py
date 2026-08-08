@@ -8,6 +8,8 @@ method (get_payment_methods, create_transaction, get_refund, ...).
 from __future__ import annotations
 
 import sys
+from importlib.metadata import version
+from platform import python_version, release, system
 from typing import Any
 
 import requests
@@ -19,8 +21,6 @@ if sys.version_info >= (3, 11):
 else:
 	from typing_extensions import Self
 
-JSONDict = dict[str, Any]
-
 from .auth import TokenManager
 from .exceptions import (
 	FawaterakAPIException,
@@ -29,6 +29,8 @@ from .exceptions import (
 	FawaterakTemporaryException,
 	FawaterakValidationException,
 )
+
+JSONDict = dict[str, Any]
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
@@ -62,10 +64,17 @@ class HTTPClient:
 		self._timeout = timeout
 		self._session = self._build_session()
 
-	@staticmethod
-	def _build_session() -> requests.Session:
+	def _build_session(self) -> requests.Session:
 		session = requests.Session()
 		adapter = HTTPAdapter(max_retries=_TRANSPORT_RETRY)
+		session.headers.update(
+			{
+				"User-Agent": f"Fawaterak-sdk/{version('fawaterak')} Python/{python_version()} {system()}/{release()}",
+				"Authorization": f"Bearer {self._token_manager.access_token}",
+				"Accept": "application/json",
+				"Content-Type": "application/json",
+			}
+		)
 		session.mount("https://", adapter)
 		session.mount("http://", adapter)
 		return session
@@ -90,11 +99,6 @@ class HTTPClient:
 		  - any other non-2xx                    -> FawaterakAPIError
 		"""
 		url = f"{self._base_url}{path}"
-		headers = {
-			"Authorization": f"Bearer {self._token_manager.access_token}",
-			"Accept": "application/json",
-			"Content-Type": "application/json",
-		}
 
 		try:
 			response = self._session.request(
@@ -102,7 +106,6 @@ class HTTPClient:
 				url,
 				json=json,
 				params=params,
-				headers=headers,
 				timeout=self._timeout,
 			)
 		except requests.exceptions.RequestException as exc:
@@ -110,6 +113,7 @@ class HTTPClient:
 
 		if response.status_code == 401 and not _retried:
 			self._token_manager.refresh()
+			self._session = self._build_session()
 			return self.request(method, path, json=json, params=params, _retried=True)
 
 		if response.ok:
