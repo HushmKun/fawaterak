@@ -13,6 +13,8 @@ import hmac
 from enum import Enum
 from typing import Any
 
+from ..exceptions import FawaterakWebhookException
+
 
 class WebhookType(str, Enum):
 	"""
@@ -201,5 +203,7 @@ def verify_webhook(
 		WebhookType.REFUND: verify_refund_webhook,
 		WebhookType.TOKENIZATION: verify_tokenization_webhook,
 	}
-	verifier = verifiers[webhook_type]
+	verifier = verifiers.get(webhook_type)
+	if not verifier:
+		raise FawaterakWebhookException("Unknown webhook type.")
 	return verifier(payload, vendor_api_key)
