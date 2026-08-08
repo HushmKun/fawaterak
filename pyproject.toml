@@ -1,7 +1,7 @@
 [project]
 name = "fawaterak" 
-version = "0.2.0"
-description = "Python bindings for the Fawaterak API"
+version = "0.3.0"
+description = "Unofficial Python SDK for the Fawaterak API"
 readme = "README.md"
 requires-python = ">=3.9"
 authors = [{ name = "Hussein Mukhtar", email = "hussein@hushm.me" }]
@@ -10,7 +10,7 @@ license = "AGPL-3.0-or-later"
 keywords = ["fawaterk", "api", "payments"]
 
 classifiers = [
-  "Development Status :: 1 - Planning",
+  "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python",
@@ -26,6 +26,13 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""
+
 dependencies = [
     "oauthlib>=3.3.1",
     "python-dotenv>=1.2.1",
@@ -36,7 +43,6 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "cov>=0.1.2",
     "pre-commit>=4.3.0",
     "pytest>=8.4.2",
     "pytest-cov>=7.1.0",
@@ -44,6 +50,11 @@ dev = [
     "requests-mock>=1.12.0",
     "ruff>=0.16.1",
     "ty>=0.0.65",
+]
+test = [
+    "django>=4.2.30",
+    "fastapi>=0.128.8",
+    "flask>=3.1.3",
 ]
 
 # [project.optional-dependencies]
@@ -71,7 +82,7 @@ indent-width = 4
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["I"] 
+extend-select = ["I"] 
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.format]

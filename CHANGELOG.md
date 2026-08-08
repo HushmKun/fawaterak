@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-08-08
+
+### Added
+
+- `fawaterak.webhooks` module with framework-agnostic HMAC verification and
+  typed event parsers.
+- `WebhookType` enum and per-type `verify_*_webhook` / `parse_*_webhook`
+  functions, plus generic `verify_webhook` / `parse_webhook` dispatchers.
+- Webhook event dataclasses: `PaidWebhookEvent`, `FailedWebhookEvent`,
+  `CancelWebhookEvent`, `RefundWebhookEvent`, and `TokenizationWebhookEvent`.
+- Normalization of both Trx-style (`transaction_key`/`transaction_id`) and
+  legacy invoice-style (`invoice_key`/`invoice_id`) fields into flat event
+  models for paid and failed webhooks.
+- Tokenization webhook verification/parser stub that raises
+  `NotImplementedError` until Later Phase.
+- README section with Flask, Django-style, and FastAPI-style webhook examples.
+
 ## [0.2.0] - 2026-08-05
 
 ### Added

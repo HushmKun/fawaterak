@@ -9,10 +9,10 @@ Use this library at your own risk.
 
 ## Status
 
-This project is in early development (`0.2.0`). The foundational OAuth/HTTP
-layers and the core transaction client (payment methods, create/fetch/list
-transactions) are implemented. Webhooks, e-invoicing, refunds, and tokenization
-are still on the roadmap.
+This project is in early development (`0.3.0`). The foundational OAuth/HTTP
+layers, the core transaction client (payment methods, create/fetch/list
+transactions), and the framework-agnostic webhook verification/parsers are
+implemented. E-invoicing, refunds, and tokenization are still on the roadmap.
 
 ## Features
 
@@ -27,6 +27,9 @@ are still on the roadmap.
   API errors.
 - **`FawaterakClient`** with `get_payment_methods`, `create_transaction`,
   `get_transaction`, and `list_transactions` covering the core transaction flow.
+- **Webhook verification and parsing** with HMAC signature checks and typed
+  event dataclasses (`PaidWebhookEvent`, `FailedWebhookEvent`,
+  `CancelWebhookEvent`, `RefundWebhookEvent`).
 - **Two transaction modes** — hosted checkout (`result.url`) and direct payment
   (`result.payment_data`), with a discriminated `PaymentResult` union for card
   redirects, reference codes (Fawry/Aman/Masary), and mobile wallets.
@@ -72,10 +75,12 @@ variables. Explicit arguments always win.
 | `client_secret`   | `FAWATERAK_CLIENT_SECRET`   | Yes      |
 | `environment`     | `FAWATERAK_ENV`             | Yes*     |
 | `base_url`        | —                           | Yes*     |
-| `vendor_api_key`  | `FAWATERAK_VENDOR_API_KEY`  | No       |
+| `vendor_api_key`  | `FAWATERAK_VENDOR_API_KEY`  | No**     |
 
 \* Either `environment` (`staging` or `production`) or a direct `base_url` must
 be provided.
+
+\** Must be provided if you plan to use Webhooks.
 
 ## Usage
 
@@ -151,6 +156,100 @@ page = client.list_transactions(
 for item in page.data:
 	print(item.transaction_id, item.status_text)
 ```
+
+## Webhooks
+
+The SDK verifies webhook HMAC signatures using your **vendor API key** (not the
+OAuth client secret). It is framework-agnostic: parse the incoming body into a
+dict using your web framework, then call the provided parser.
+
+### Flask example (paid webhook)
+
+```python
+from fawaterak import FawaterakClient
+
+client = FawaterakClient()
+
+
+@app.post("/webhooks/fawaterak/paid/")
+def handle_paid_webhook():
+	payload = request.get_json() or request.form.to_dict()
+	event = client.parse_paid_webhook(payload)
+
+	if event.status == "paid":
+		fulfill_order(event)
+
+	return "OK", 200
+```
+
+### Django example
+
+```python
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from fawaterak import FawaterakClient
+
+client = FawaterakClient()
+
+
+@csrf_exempt
+def fawaterak_paid_webhook(request):
+	payload = request.POST if request.method == "POST" else request.json()
+	event = client.parse_paid_webhook(payload)
+
+	if event.status == "paid":
+		fulfill_order(event)
+
+	return JsonResponse({"status": "ok"})
+```
+
+### FastAPI example
+
+```python
+from fastapi import FastAPI, Request
+from fawaterak import FawaterakClient
+
+app = FastAPI()
+client = FawaterakClient()
+
+
+@app.post("/webhooks/fawaterak/paid/")
+async def handle_paid_webhook(request: Request):
+	payload = await request.json()
+	event = client.parse_paid_webhook(payload)
+
+	if event.status == "paid":
+		fulfill_order(event)
+
+	return {"status": "ok"}
+```
+
+### Other webhook types
+
+```python
+# Failed payment
+failed_event = client.parse_failed_webhook(payload)
+
+# Cancelled / expired reference
+cancel_event = client.parse_cancel_webhook(payload)
+
+# Refund approved
+refund_event = client.parse_refund_webhook(payload)
+
+# Dispatch by type when the endpoint handles multiple webhook kinds
+from fawaterak.webhooks import WebhookType
+
+event = client.parse_webhook(payload, WebhookType.REFUND)
+```
+
+You can also call the standalone functions in `fawaterak.webhooks` directly if
+you prefer not to instantiate `FawaterakClient` for webhook handlers.
+
+Paid and failed webhooks can be delivered as JSON or form-urlencoded; cancel
+and refund webhooks are always JSON. The parsers raise
+`FawaterakWebhookException` if the signature does not match. The generic
+`verify_webhook`/`parse_webhook` dispatchers raise `FawaterakWebhookException`
+for unknown webhook types.
 
 ## Development
 
