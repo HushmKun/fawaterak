@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import os
 from datetime import date
-from typing import Any
 
 import pytest
-import requests
 import requests_mock
 
 from fawaterak._http import HTTPClient
@@ -602,7 +600,6 @@ class TestStagingIntegration:
 	@pytest.fixture(autouse=True)
 	def clean_env(self) -> None:
 		"""Override conftest's clean_env — these tests need real credentials."""
-		pass
 
 	@pytest.fixture
 	def staging_client(self) -> FawaterakClient:

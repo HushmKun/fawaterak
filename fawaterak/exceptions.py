@@ -12,6 +12,8 @@ FawaterakError
 ```
 """
 
+from __future__ import annotations
+
 
 class FawaterakException(BaseException):
 	"""Base class for every exception the SDK raises"""

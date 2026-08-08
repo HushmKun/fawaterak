@@ -20,7 +20,7 @@ class WebhookType(str, Enum):
 	"""
 	Known Fawaterak webhook types.
 
-	Will be migrated to StrEnum when 3.9 & 3.10 support is dropped.
+	#TODO: Will be migrated to StrEnum when 3.9 & 3.10 support is dropped.
 	"""
 
 	PAID = "paid"

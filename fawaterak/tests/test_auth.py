@@ -402,7 +402,7 @@ class TestRecursionSafety:
 		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
 		manager._refresh_token = REFRESH_TOKEN
 		manager._expires_at = time.time() - 1
-		manager.access_token
+		manager.access_token  # noqa: B018
 		second_request = requests_mock.request_history[1]
 		assert second_request.json()["grant_type"] == "client_credentials"
 		assert "refresh_token" not in second_request.json()

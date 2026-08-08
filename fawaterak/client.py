@@ -68,7 +68,7 @@ class FawaterakClient:
 				timeout=self._config.timeout,
 			)
 
-	@cache
+	@cache  # noqa: B019
 	def get_payment_methods(self) -> list[PaymentMethod]:
 		"""Return all integration-enabled payment methods for this vendor."""
 		response = self._http.request("GET", "/api/v3/getTrPaymentmethods")
@@ -236,7 +236,7 @@ class FawaterakClient:
 	def close(self) -> None:
 		self._http.close()
 
-	def __enter__(self) -> FawaterakClient:
+	def __enter__(self) -> FawaterakClient:  # noqa: PYI034   TODO: Update when dropping support for 3.9 & 3.10
 		return self
 
 	def __exit__(self, *exc_info: object) -> None:

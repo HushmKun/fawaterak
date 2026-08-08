@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from typing import Any, ClassVar, Dict, Literal
+from typing import Any, ClassVar, Literal
 
 from ._http import DEFAULT_TIMEOUT_SECONDS
 from .exceptions import FawaterakConfigException
@@ -47,7 +47,7 @@ class SingletonMeta(type):
 	lacks thread-safety due to lack of necessity.
 	"""
 
-	_instances: ClassVar[Dict[Any, Any]] = {}
+	_instances: ClassVar[dict[Any, Any]] = {}
 
 	def __call__(cls, *args: Any, **kwargs: Any) -> Any:
 		if cls not in cls._instances:
