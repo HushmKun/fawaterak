@@ -7,6 +7,7 @@ from datetime import date
 
 import pytest
 import requests_mock
+from _helpers import FakeTokenManager
 
 from fawaterak._http import HTTPClient
 from fawaterak.client import FawaterakClient
@@ -27,17 +28,6 @@ from fawaterak.webhooks import (
 )
 
 BASE_URL = "https://api.example.com"
-
-
-class FakeTokenManager:
-	"""Token manager stub that avoids real OAuth calls in unit tests."""
-
-	@property
-	def access_token(self) -> str:
-		return "test-token"
-
-	def refresh(self) -> None:
-		pass
 
 
 @pytest.fixture

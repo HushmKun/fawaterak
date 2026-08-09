@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import threading
 import time
+from importlib.metadata import version
+from platform import python_version, release, system
 from typing import Any
 
 import pytest
@@ -47,15 +49,21 @@ class TestTokenManagerInit:
 			CLIENT_ID,
 			CLIENT_SECRET,
 			"https://api.example.com/",
-			requests.Session(),
 		)
 		assert manager._base_url == "https://api.example.com"
 
 	def test_init_initial_state(self) -> None:
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		assert manager._access_token is None
 		assert manager._refresh_token is None
 		assert manager._expires_at == 0.0
+
+	def test_init_session_headers(self) -> None:
+		session = TokenManager._build_session()
+		assert isinstance(session, requests.Session)
+		assert session.headers["User-Agent"] == (
+			f"Fawaterak-sdk-auth/{version('fawaterak')} Python/{python_version()} {system()}/{release()}"
+		)
 
 
 class TestAccessTokenProperty:
@@ -66,7 +74,7 @@ class TestAccessTokenProperty:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		token = manager.access_token
 		assert token == ACCESS_TOKEN
 		assert len(requests_mock.request_history) == 1
@@ -84,7 +92,7 @@ class TestAccessTokenProperty:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(expires_in=300),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		assert manager.access_token == ACCESS_TOKEN
 		assert manager.access_token == ACCESS_TOKEN
 		assert len(requests_mock.request_history) == 1
@@ -94,7 +102,7 @@ class TestAccessTokenProperty:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._access_token = "old-token"
 		manager._refresh_token = REFRESH_TOKEN
 		manager._expires_at = time.time() - 1
@@ -110,7 +118,7 @@ class TestAccessTokenProperty:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._refresh_token = REFRESH_TOKEN
 		assert manager.access_token == ACCESS_TOKEN
 		assert requests_mock.request_history[0].json()["grant_type"] == "refresh_token"
@@ -122,7 +130,7 @@ class TestAccessTokenProperty:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._access_token = "old-token"
 		manager._refresh_token = REFRESH_TOKEN
 		manager._expires_at = time.time() + 3600
@@ -139,7 +147,7 @@ class TestRefreshMethod:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._access_token = "old-token"
 		manager._refresh_token = REFRESH_TOKEN
 		manager._expires_at = time.time() + 3600
@@ -154,7 +162,7 @@ class TestRefreshMethod:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._refresh_token = REFRESH_TOKEN
 		manager.refresh()
 		assert requests_mock.request_history[0].json()["grant_type"] == "refresh_token"
@@ -165,7 +173,7 @@ class TestPayloadAndUrl:
 		self, requests_mock: requests_mock.Mocker
 	) -> None:
 		requests_mock.post(f"{BASE_URL}/oauth/token", json=_token_response())
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager.refresh()
 		body = requests_mock.request_history[0].json()
 		assert body == {
@@ -176,7 +184,7 @@ class TestPayloadAndUrl:
 
 	def test_refresh_token_payload(self, requests_mock: requests_mock.Mocker) -> None:
 		requests_mock.post(f"{BASE_URL}/oauth/token", json=_token_response())
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._refresh_token = REFRESH_TOKEN
 		manager.refresh()
 		body = requests_mock.request_history[0].json()
@@ -195,7 +203,6 @@ class TestPayloadAndUrl:
 			CLIENT_ID,
 			CLIENT_SECRET,
 			"https://api.example.com/",
-			requests.Session(),
 		)
 		manager.refresh()
 		assert requests_mock.request_history[0].url == f"{BASE_URL}/oauth/token"
@@ -206,7 +213,7 @@ class TestResponseParsing:
 		self, requests_mock: requests_mock.Mocker
 	) -> None:
 		requests_mock.post(f"{BASE_URL}/oauth/token", json=_token_response())
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager.refresh()
 		assert manager._access_token == ACCESS_TOKEN
 		assert manager._refresh_token == REFRESH_TOKEN
@@ -219,7 +226,7 @@ class TestResponseParsing:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(expires_in=300),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager.refresh()
 		expected_max = time.time() + 270
 		assert manager._expires_at <= expected_max
@@ -231,7 +238,7 @@ class TestResponseParsing:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(refresh_token=None),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._refresh_token = REFRESH_TOKEN
 		manager.refresh()
 		assert manager._refresh_token == REFRESH_TOKEN
@@ -243,7 +250,7 @@ class TestResponseParsing:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(refresh_token=NEW_REFRESH_TOKEN),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._refresh_token = REFRESH_TOKEN
 		manager.refresh()
 		assert manager._refresh_token == NEW_REFRESH_TOKEN
@@ -257,7 +264,7 @@ class TestErrorHandling:
 			f"{BASE_URL}/oauth/token",
 			exc=requests.exceptions.ConnectTimeout("connection timed out"),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		with pytest.raises(FawaterakConnectionException):
 			manager.refresh()
 
@@ -269,7 +276,7 @@ class TestErrorHandling:
 			status_code=400,
 			json={"message": "invalid credentials"},
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		with pytest.raises(FawaterakAuthException) as exc_info:
 			manager.refresh()
 		assert exc_info.value.status_code == 400
@@ -285,7 +292,7 @@ class TestErrorHandling:
 				{"status_code": 200, "json": _token_response()},
 			],
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._refresh_token = REFRESH_TOKEN
 		manager._expires_at = time.time() - 1
 		token = manager.access_token
@@ -304,7 +311,7 @@ class TestErrorHandling:
 			status_code=401,
 			json={"message": "unauthorized"},
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._refresh_token = REFRESH_TOKEN
 		manager._access_token = "old-access-token"
 		with pytest.raises(FawaterakAuthException) as exc_info:
@@ -321,7 +328,7 @@ class TestErrorHandling:
 			text="Internal Server Error",
 			headers={"Content-Type": "text/html"},
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		with pytest.raises(FawaterakAuthException) as exc_info:
 			manager.refresh()
 
@@ -336,7 +343,7 @@ class TestErrorHandling:
 			status_code=400,
 			json={},
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		with pytest.raises(FawaterakAuthException) as exc_info:
 			manager.refresh()
 		assert exc_info.value.message == "OAuth token exchange failed"
@@ -350,7 +357,7 @@ class TestMalformedResponses:
 			f"{BASE_URL}/oauth/token",
 			json={"expires_in": 300, "refresh_token": REFRESH_TOKEN},
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		with pytest.raises(KeyError):
 			manager.refresh()
 
@@ -361,7 +368,7 @@ class TestMalformedResponses:
 			f"{BASE_URL}/oauth/token",
 			json={"access_token": ACCESS_TOKEN, "refresh_token": REFRESH_TOKEN},
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		with pytest.raises(KeyError):
 			manager.refresh()
 
@@ -372,7 +379,7 @@ class TestMalformedResponses:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(expires_in=0),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager.refresh()
 		assert manager._expires_at <= time.time()
 
@@ -383,7 +390,7 @@ class TestMalformedResponses:
 			f"{BASE_URL}/oauth/token",
 			json=_token_response(expires_in=-10),
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager.refresh()
 		assert manager._expires_at < time.time()
 
@@ -399,7 +406,7 @@ class TestRecursionSafety:
 				{"status_code": 200, "json": _token_response()},
 			],
 		)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		manager._refresh_token = REFRESH_TOKEN
 		manager._expires_at = time.time() - 1
 		manager.access_token  # noqa: B018
@@ -425,7 +432,7 @@ class TestThreadSafety:
 			return _token_response()
 
 		requests_mock.post(f"{BASE_URL}/oauth/token", json=slow_response)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		results: list[str | None] = []
 		result_lock = threading.Lock()
 
@@ -458,7 +465,7 @@ class TestThreadSafety:
 			return _token_response()
 
 		requests_mock.post(f"{BASE_URL}/oauth/token", json=slow_response)
-		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, requests.Session())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
 		threads = [threading.Thread(target=manager.refresh) for _ in range(10)]
 		for t in threads:
 			t.start()
