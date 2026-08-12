@@ -9,7 +9,7 @@ Use this library at your own risk.
 
 ## Status
 
-This project is in early development (`0.3.0`). The foundational OAuth/HTTP
+This project is in early development (`0.3.1`). The foundational OAuth/HTTP
 layers, the core transaction client (payment methods, create/fetch/list
 transactions), and the framework-agnostic webhook verification/parsers are
 implemented. E-invoicing, refunds, and tokenization are still on the roadmap.

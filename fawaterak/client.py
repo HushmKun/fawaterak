@@ -52,15 +52,12 @@ class FawaterakClient:
 		if http_client is not None:
 			self._http = http_client
 		else:
-			import requests
-
 			from .auth import TokenManager
 
 			token_manager = TokenManager(
 				self._config.client_id,
 				self._config.client_secret,
 				self._config.base_url,
-				requests.Session(),
 			)
 			self._http = HTTPClient(
 				self._config.base_url,

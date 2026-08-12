@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-08-09
+
+### Modified
+
+- `fawaterak._http` module to set `Authorization`, `Accept`, `Content-Type`
+  and `User-Agent` headers once on the session, and to rebuild the session
+  after token refresh so that retried requests carry the new access token.
+- `fawaterak.auth` module to create its own `requests.Session` with a
+  `User-Agent` header that identifies the SDK version and platform; the
+  constructor no longer requires an external session instance.
+- `fawaterak.client` module to stop passing a raw `requests.Session` to
+  `TokenManager`, relying on the auth module’s internal session instead.
+
 ## [0.3.0] - 2026-08-08
 
 ### Added

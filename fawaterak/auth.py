@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import threading
 import time
+from importlib.metadata import version
+from platform import python_version, release, system
 from typing import Any
 
 import requests
@@ -27,17 +29,25 @@ class TokenManager:
 		client_id: str,
 		client_secret: str,
 		base_url: str,
-		session: requests.Session,
+		session: requests.Session | None = None,
 	) -> None:
 		self._client_id = client_id
 		self._client_secret = client_secret
 		self._base_url = base_url.rstrip("/")
-		self._session = session
+		self._session = session or self._build_session()
 		self._lock = threading.Lock()
 
 		self._access_token: str | None = None
 		self._refresh_token: str | None = None
 		self._expires_at: float = 0.0
+
+	@staticmethod
+	def _build_session() -> requests.Session:
+		session = requests.Session()
+		session.headers["User-Agent"] = (
+			f"Fawaterak-sdk-auth/{version('fawaterak')} Python/{python_version()} {system()}/{release()}"
+		)
+		return session
 
 	@property
 	def access_token(self) -> str | None:
