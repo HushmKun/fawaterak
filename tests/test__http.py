@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 import requests
 import requests_mock
+from _helpers import FakeTokenManager
 from requests.adapters import HTTPAdapter
 
 from fawaterak._http import HTTPClient
@@ -19,7 +20,6 @@ from fawaterak.exceptions import (
 	FawaterakTemporaryException,
 	FawaterakValidationException,
 )
-from fawaterak.tests._helpers import FakeTokenManager
 
 BASE_URL = "https://api.example.com"
 
