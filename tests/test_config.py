@@ -15,10 +15,6 @@ from fawaterak.config import (
 )
 from fawaterak.exceptions import FawaterakConfigException
 
-# --------------------------------------------------------------------------
-# Happy path: everything passed explicitly
-# --------------------------------------------------------------------------
-
 
 class TestResolveExplicitArgs:
 	def test_explicit_staging(self) -> None:
@@ -69,11 +65,6 @@ class TestResolveExplicitArgs:
 		assert config.vendor_api_key is None
 
 
-# --------------------------------------------------------------------------
-# Environment-variable fallback
-# --------------------------------------------------------------------------
-
-
 class TestResolveEnvFallback:
 	def test_client_id_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
 		monkeypatch.setenv(ENV_CLIENT_ID, "env-cid")
@@ -111,11 +102,6 @@ class TestResolveEnvFallback:
 		assert config.environment == "staging"
 		assert config.vendor_api_key == "env-vendor-key"
 		assert config.base_url == "https://staging.fawaterk.com"
-
-
-# --------------------------------------------------------------------------
-# Precedence: explicit argument beats env var
-# --------------------------------------------------------------------------
 
 
 class TestResolvePrecedence:
@@ -163,11 +149,6 @@ class TestResolvePrecedence:
 		assert config.client_id == "env-cid"
 
 
-# --------------------------------------------------------------------------
-# Missing required credentials
-# --------------------------------------------------------------------------
-
-
 class TestResolveMissingCredentials:
 	def test_missing_client_id_raises(self) -> None:
 		with pytest.raises(FawaterakConfigException, match="client_id"):
@@ -199,11 +180,6 @@ class TestResolveMissingCredentials:
 		"""
 		with pytest.raises(FawaterakConfigException, match="client_id"):
 			Config.resolve()
-
-
-# --------------------------------------------------------------------------
-# Environment / base_url resolution edge cases
-# --------------------------------------------------------------------------
 
 
 class TestResolveEnvironmentEdgeCases:
@@ -252,11 +228,6 @@ class TestResolveEnvironmentEdgeCases:
 		assert config.base_url == "https://mock.local"
 
 
-# --------------------------------------------------------------------------
-# Timeout
-# --------------------------------------------------------------------------
-
-
 class TestResolveTimeout:
 	def test_default_timeout_used_when_not_specified(self) -> None:
 		config = Config.resolve(
@@ -272,11 +243,6 @@ class TestResolveTimeout:
 			timeout=5.0,
 		)
 		assert config.timeout == 5.0
-
-
-# --------------------------------------------------------------------------
-# Dataclass behavior: immutability and secret redaction
-# --------------------------------------------------------------------------
 
 
 class TestConfigDataclassBehavior:
@@ -324,19 +290,6 @@ class TestConfigDataclassBehavior:
 		assert config.client_id == "cid"
 		assert config.environment is None
 		assert config.timeout == DEFAULT_TIMEOUT_SECONDS
-
-
-# --------------------------------------------------------------------------
-# Singleton behavior (SingletonMeta)
-#
-# Config is a process-wide singleton: the *first* successful construction —
-# whether via Config(...) directly or Config.resolve(...) — wins, and every
-# later call returns that same instance regardless of what arguments it's
-# given. These tests pin that contract down explicitly, since it's easy to
-# accidentally change (e.g. by keying the cache on args, or removing the
-# metaclass) without anything else in the suite catching it — the tests
-# above only ever build one Config per test, so they can't see this.
-# --------------------------------------------------------------------------
 
 
 class TestSingletonBehavior:

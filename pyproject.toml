@@ -1,6 +1,6 @@
 [project]
 name = "fawaterak" 
-version = "0.3.1"
+version = "0.3.2"
 description = "Unofficial Python SDK for the Fawaterak API"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -92,7 +92,6 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
 markers = [
   "integration: live tests that hit the Fawaterak staging API (requires real credentials)",
 ]
