@@ -363,10 +363,10 @@ class FawaterakClient:
 
 		The API refuses deletion if active payment references block it.
 		(That's what docs say, can't replicate it)
-		Returns True on a successful deletion response.  
-		
-		Can't understand how they don't soft delete, they just go full 
-		delete, like not just a status saying deleted (Soft-deletion). 
+		Returns True on a successful deletion response.
+
+		Can't understand how they don't soft delete, they just go full
+		delete, like not just a status saying deleted (Soft-deletion).
 		"""
 		self._http.request(
 			"POST",
