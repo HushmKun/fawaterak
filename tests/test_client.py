@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import uuid
 from datetime import date
 
 import pytest
@@ -12,8 +13,17 @@ from _helpers import FakeTokenManager
 from fawaterak._http import HTTPClient
 from fawaterak.client import FawaterakClient
 from fawaterak.config import Config
-from fawaterak.exceptions import FawaterakConfigException, FawaterakWebhookException
+from fawaterak.exceptions import (
+	FawaterakConfigException,
+	FawaterakValidationException,
+	FawaterakWebhookException,
+)
 from fawaterak.models.common import CartItem, Customer, RedirectionUrls
+from fawaterak.models.einvoice import (
+	EInvoice,
+	EinvoiceCreationResult,
+	EinvoiceFilter,
+)
 from fawaterak.models.transaction import (
 	CardPaymentResult,
 	DirectPaymentResult,
@@ -581,6 +591,551 @@ class TestClientWebhooks:
 		event = webhook_client.parse_webhook(payload, WebhookType.REFUND)
 		assert isinstance(event, RefundWebhookEvent)
 		assert event.amount == "50.00"
+
+
+class TestCreateEinvoice:
+	def test_create_einvoice_returns_result(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/createEinvoice",
+			json={
+				"status": "success",
+				"data": {
+					"url": "https://staging.fawaterk.com/in/abc123",
+					"invoiceKey": "abc123",
+					"invoiceId": 12345,
+				},
+			},
+		)
+		result = client.create_einvoice(
+			currency="EGP",
+			customer=Customer(
+				first_name="Ahmed",
+				last_name="Ali",
+				customer_unique_id="user_12345",
+			),
+			cart_items=[CartItem(name="Order total", price=100.0, quantity=1)],
+			cart_total=100.0,
+		)
+		assert isinstance(result, EinvoiceCreationResult)
+		assert result.url == "https://staging.fawaterk.com/in/abc123"
+		assert result.invoice_key == "abc123"
+		assert result.invoice_id == 12345
+
+	def test_create_einvoice_request_payload_includes_optional_fields(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/createEinvoice",
+			json={
+				"status": "success",
+				"data": {
+					"url": "https://staging.fawaterk.com/in/abc123",
+					"invoiceKey": "abc123",
+					"invoiceId": 12345,
+				},
+			},
+		)
+		client.create_einvoice(
+			currency="EGP",
+			customer=Customer(
+				first_name="Ahmed",
+				last_name="Ali",
+				email="ahmed@example.com",
+				customer_unique_id="user_12345",
+			),
+			cart_items=[CartItem(name="Order total", price=100.0, quantity=1)],
+			cart_total=100.0,
+			due_date="2026-08-20",
+			invoice_number="INV-001",
+			pay_load={"order_id": "ORD-001"},
+			redirection_urls=RedirectionUrls(
+				success_url="https://example.com/success",
+				fail_url="https://example.com/fail",
+			),
+		)
+		request = requests_mock.request_history[0]
+		payload = request.json()
+		assert payload["currency"] == "EGP"
+		assert payload["cartTotal"] == 100.0
+		assert payload["cartItems"] == [
+			{"name": "Order total", "price": 100.0, "quantity": 1}
+		]
+		assert payload["customer"]["customer_unique_id"] == "user_12345"
+		assert payload["due_date"] == "2026-08-20"
+		assert payload["invoice_number"] == "INV-001"
+		assert payload["payLoad"] == {"order_id": "ORD-001"}
+		assert payload["redirectionUrls"] == {
+			"success_url": "https://example.com/success",
+			"fail_url": "https://example.com/fail",
+		}
+
+	def test_create_einvoice_raises_when_customer_unique_id_missing(
+		self, client: FawaterakClient
+	) -> None:
+		with pytest.raises(FawaterakValidationException):
+			client.create_einvoice(
+				currency="EGP",
+				customer=Customer(first_name="Ahmed", last_name="Ali"),
+				cart_items=[CartItem(name="Order total", price=100.0, quantity=1)],
+				cart_total=100.0,
+			)
+
+
+class TestGetEinvoice:
+	def test_get_einvoice_returns_invoice(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/get",
+			json={
+				"status": "success",
+				"data": {
+					"id": 12345,
+					"invoice_key": "abc123",
+					"vendor_id": 1,
+					"vendor_username": "vendor",
+					"customer_id": 99,
+					"first_name": "Ahmed",
+					"last_name": "Ali",
+					"to_customer": 99,
+					"due_date": "2026-08-20",
+					"frequency": "once",
+					"custom_due_date": None,
+					"invoice_number": "INV-001",
+					"pay_load": None,
+					"type": 1,
+					"invoice_type": 1,
+					"tax_name": "VAT",
+					"tax_amount": 14.0,
+					"payment_method": "Fawry",
+					"payment_method_id": 3,
+					"currency": "EGP",
+					"quantity": 1,
+					"total": 100.0,
+					"paid": 0,
+					"status": 2,
+					"locked": 0,
+					"is_api": 1,
+					"paid_at": None,
+					"promocode": None,
+					"discount_promocode": None,
+					"created_at": "2026-08-15 10:00:00",
+					"updated_at": "2026-08-15 10:00:00",
+					"deleted_at": None,
+					"products": [
+						{
+							"id": 1,
+							"invoice_key": "abc123",
+							"item_id": 1,
+							"type": 1,
+							"product_name": "Order total",
+							"product_price": "100.00",
+							"product_quantity": "1",
+							"item_currency": "EGP",
+							"total": "100.00",
+							"created_at": "2026-08-15 10:00:00",
+							"updated_at": "2026-08-15 10:00:00",
+							"deleted_at": None,
+						}
+					],
+					"tax_code": None,
+					"tax_value": None,
+					"discount_type": None,
+					"discount_value": None,
+					"hasHistory": False,
+					"customPages": [],
+					"tags": None,
+					"attachment": None,
+					"create_source": "API.v3.EI.IN",
+				},
+			},
+		)
+		result = client.get_einvoice(12345)
+		assert isinstance(result, EInvoice)
+		assert result.invoice_id == 12345
+		assert result.invoice_key == "abc123"
+		assert result.status == 2
+		assert result.has_history is False
+		assert len(result.products) == 1
+		assert result.products[0].product_name == "Order total"
+		assert result.products[0].product_price == "100.00"
+
+	def test_get_einvoice_request_body(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/get",
+			json={"status": "success", "data": {"id": 12345, "invoice_key": "abc123"}},
+		)
+		client.get_einvoice(12345)
+		request = requests_mock.request_history[0]
+		assert request.json() == {"invoice_id": 12345}
+
+
+class TestListEinvoices:
+	def test_list_einvoices_returns_paginated_results(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/index",
+			json={
+				"status": "success",
+				"data": {
+					"current_page": 1,
+					"data": [
+						{
+							"id": 12345,
+							"invoice_key": "abc123",
+							"status": 2,
+							"total": 100.0,
+							"currency": "EGP",
+						}
+					],
+					"from": 1,
+					"last_page": 1,
+					"per_page": 10,
+					"to": 1,
+					"total": 1,
+				},
+			},
+		)
+		result = client.list_einvoices()
+		assert len(result.data) == 1
+		assert result.data[0].invoice_id == 12345
+		assert result.total == 1
+		assert result.per_page == 10
+		assert result.current_page == 1
+		assert result.last_page == 1
+		assert result.from_item == 1
+		assert result.to_item == 1
+
+	def test_list_einvoices_sends_filter(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/index",
+			json={
+				"status": "success",
+				"data": {"current_page": 1, "data": [], "total": 0},
+			},
+		)
+		client.list_einvoices(
+			EinvoiceFilter(status=2, invoice_number="INV-001", customer_id=99)
+		)
+		request = requests_mock.request_history[0]
+		assert request.json() == {
+			"filter": {
+				"status": 2,
+				"invoice_number": "INV-001",
+				"customer_id": 99,
+			}
+		}
+
+	def test_list_einvoices_empty_body_when_no_filter(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/index",
+			json={
+				"status": "success",
+				"data": {"current_page": 1, "data": [], "total": 0},
+			},
+		)
+		client.list_einvoices()
+		request = requests_mock.request_history[0]
+		assert request.json() == {}
+
+
+class TestUpdateEinvoice:
+	def test_update_einvoice_replaces_line_items(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/update",
+			json={
+				"status": "success",
+				"data": {
+					"id": 12345,
+					"invoice_key": "abc123",
+					"status": 2,
+					"products": [
+						{
+							"product_name": "Updated item",
+							"product_price": "200.00",
+							"product_quantity": "2",
+							"total": "400.00",
+						}
+					],
+				},
+			},
+		)
+		result = client.update_einvoice(
+			invoice_id=12345,
+			customer=Customer(
+				first_name="Ahmed",
+				last_name="Ali",
+				customer_unique_id="user_12345",
+			),
+			currency="EGP",
+			products=[CartItem(name="Updated item", price=200.0, quantity=2)],
+		)
+		assert isinstance(result, EInvoice)
+		assert result.invoice_id == 12345
+		assert result.products[0].product_name == "Updated item"
+
+	def test_update_einvoice_preserves_history(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/update",
+			json={
+				"status": "success",
+				"data": {
+					"id": 12345,
+					"invoice_key": "abc123",
+					"status": 2,
+					"invoice_number": "INV-002",
+					"tags": "metadata-only",
+					"products": [
+						{
+							"product_name": "Old item",
+							"product_price": "100.00",
+							"product_quantity": "1",
+							"total": "100.00",
+						}
+					],
+				},
+			},
+		)
+		result = client.update_einvoice(
+			invoice_id=12345,
+			customer=Customer(
+				first_name="Ahmed",
+				last_name="Ali",
+				customer_unique_id="user_12345",
+			),
+			has_history=True,
+			invoice_number="INV-002",
+			tags="metadata-only",
+		)
+		assert isinstance(result, EInvoice)
+		assert result.invoice_number == "INV-002"
+		assert result.tags == "metadata-only"
+		request = requests_mock.request_history[0]
+		payload = request.json()
+		assert payload["hasHistory"] is True
+		assert "currency" not in payload
+		assert "products" not in payload
+
+	def test_update_einvoice_request_payload(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/update",
+			json={"status": "success", "data": {"id": 12345, "invoice_key": "abc123"}},
+		)
+		client.update_einvoice(
+			invoice_id=12345,
+			customer=Customer(
+				first_name="Ahmed",
+				last_name="Ali",
+				customer_unique_id="user_12345",
+			),
+			currency="EGP",
+			products=[CartItem(name="Updated item", price=200.0, quantity=2)],
+			due_date="2026-08-20T12:00:00Z",
+			invoice_number="INV-001",
+			tags="test",
+		)
+		request = requests_mock.request_history[0]
+		payload = request.json()
+		assert payload["invoice_id"] == 12345
+		assert payload["customer"]["customer_unique_id"] == "user_12345"
+		assert payload["currency"] == "EGP"
+		assert payload["products"] == [
+			{"name": "Updated item", "price": 200.0, "quantity": 2}
+		]
+		assert payload["due_date"] == "2026-08-20T12:00:00Z"
+		assert payload["invoice_number"] == "INV-001"
+		assert payload["tags"] == "test"
+		assert "hasHistory" not in payload
+
+	def test_update_einvoice_raises_when_customer_unique_id_missing(
+		self, client: FawaterakClient
+	) -> None:
+		with pytest.raises(FawaterakValidationException):
+			client.update_einvoice(
+				invoice_id=12345,
+				customer=Customer(first_name="Ahmed", last_name="Ali"),
+				currency="EGP",
+				products=[CartItem(name="Updated item", price=200.0, quantity=2)],
+			)
+
+	def test_update_einvoice_raises_when_currency_missing(
+		self, client: FawaterakClient
+	) -> None:
+		with pytest.raises(FawaterakValidationException):
+			client.update_einvoice(
+				invoice_id=12345,
+				customer=Customer(
+					first_name="Ahmed",
+					last_name="Ali",
+					customer_unique_id="user_12345",
+				),
+				products=[CartItem(name="Updated item", price=200.0, quantity=2)],
+			)
+
+	def test_update_einvoice_raises_when_products_missing(
+		self, client: FawaterakClient
+	) -> None:
+		with pytest.raises(FawaterakValidationException):
+			client.update_einvoice(
+				invoice_id=12345,
+				customer=Customer(
+					first_name="Ahmed",
+					last_name="Ali",
+					customer_unique_id="user_12345",
+				),
+				currency="EGP",
+			)
+
+
+class TestDeleteEinvoice:
+	def test_delete_einvoice_returns_true(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/delete",
+			json={"status": "success", "message": "invoice deleted"},
+		)
+		result = client.delete_einvoice(12345)
+		assert result is True
+
+	def test_delete_einvoice_request_body(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/delete",
+			json={"status": "success", "message": "invoice deleted"},
+		)
+		client.delete_einvoice(12345)
+		request = requests_mock.request_history[0]
+		assert request.json() == {"invoice_id": 12345}
+
+	def test_delete_einvoice_api_error_raises(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/invoice/delete",
+			json={"status": "error", "message": "Invoice cannot be deleted"},
+			status_code=422,
+		)
+		with pytest.raises(FawaterakValidationException):
+			client.delete_einvoice(12345)
+
+
+@pytest.mark.integration
+class TestEinvoiceStagingIntegration:
+	"""Live e-invoice tests against Fawaterak staging. Run with real credentials."""
+
+	@pytest.fixture(autouse=True)
+	def clean_env(self) -> None:
+		"""Override conftest's clean_env — these tests need real credentials."""
+
+	@pytest.fixture
+	def staging_client(self) -> FawaterakClient:
+		if not all(
+			os.environ.get(var)
+			for var in ("FAWATERAK_CLIENT_ID", "FAWATERAK_CLIENT_SECRET")
+		):
+			pytest.skip("Staging credentials not set")
+		return FawaterakClient(config=Config.resolve())
+
+	@pytest.fixture
+	def integration_customer(self) -> Customer:
+		return Customer(
+			first_name="Integration",
+			last_name="Test",
+			email="integration@example.com",
+			customer_unique_id=f"ei-integration-{uuid.uuid4().hex[:8]}",
+		)
+
+	@pytest.fixture
+	def created_invoice(
+		self, staging_client: FawaterakClient, integration_customer: Customer
+	) -> EinvoiceCreationResult:
+		result = staging_client.create_einvoice(
+			currency="EGP",
+			customer=integration_customer,
+			cart_items=[CartItem(name="Test order", price=100.0, quantity=1)],
+			cart_total=100.0,
+		)
+		assert result.invoice_id
+		assert result.invoice_key
+		assert result.url.startswith("http")
+		return result
+
+	def test_create_einvoice(self, created_invoice: EinvoiceCreationResult) -> None:
+		assert created_invoice.invoice_id > 0
+		assert created_invoice.invoice_key
+		assert created_invoice.url.startswith("http")
+
+	def test_get_einvoice(
+		self,
+		staging_client: FawaterakClient,
+		created_invoice: EinvoiceCreationResult,
+	) -> None:
+		fetched = staging_client.get_einvoice(created_invoice.invoice_id)
+		assert fetched.invoice_id == created_invoice.invoice_id
+		assert fetched.invoice_key == created_invoice.invoice_key
+
+	def test_list_einvoices(
+		self,
+		staging_client: FawaterakClient,
+		created_invoice: EinvoiceCreationResult,
+	) -> None:
+		page = staging_client.list_einvoices()
+		assert any(item.invoice_id == created_invoice.invoice_id for item in page.data)
+
+	def test_update_einvoice_replace_line_items(
+		self,
+		staging_client: FawaterakClient,
+		created_invoice: EinvoiceCreationResult,
+		integration_customer: Customer,
+	) -> None:
+		updated = staging_client.update_einvoice(
+			invoice_id=created_invoice.invoice_id,
+			customer=integration_customer,
+			currency="EGP",
+			products=[CartItem(name="Updated item", price=200.0, quantity=2)],
+		)
+		assert updated.invoice_id == created_invoice.invoice_id
+		assert any(p.product_name == "Updated item" for p in updated.products)
+
+	def test_update_einvoice_preserves_history(
+		self,
+		staging_client: FawaterakClient,
+		created_invoice: EinvoiceCreationResult,
+		integration_customer: Customer,
+	) -> None:
+		updated = staging_client.update_einvoice(
+			invoice_id=created_invoice.invoice_id,
+			customer=integration_customer,
+			has_history=True,
+			tags="integration-test",
+		)
+		assert updated.invoice_id == created_invoice.invoice_id
+		assert updated.tags == "integration-test"
+
+	def test_delete_einvoice(
+		self,
+		staging_client: FawaterakClient,
+		created_invoice: EinvoiceCreationResult,
+	) -> None:
+		result = staging_client.delete_einvoice(created_invoice.invoice_id)
+		assert result is True
 
 
 @pytest.mark.integration

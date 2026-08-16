@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-08-16
+
+### Added
+
+- E-invoicing support in `fawaterak.client.FawaterakClient`:
+  - `create_einvoice` — create a multi-attempt payment link.
+  - `get_einvoice` — fetch one e-invoice by `invoice_id`.
+  - `list_einvoices` — list e-invoices with an optional `EinvoiceFilter`.
+  - `update_einvoice` — replace line items (default) or update metadata while
+    preserving history (`has_history=True`).
+  - `delete_einvoice` — soft-delete an unpaid e-invoice.
+- E-invoice models in `fawaterak.models.einvoice`: `EInvoice`,
+  `EinvoiceCreationResult`, `EinvoiceProduct`, and `EinvoiceFilter`.
+- Unit tests and staging integration tests covering the full e-invoice
+  lifecycle.
+
 ## [0.3.1] - 2026-08-09
 
 ### Modified
