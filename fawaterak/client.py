@@ -8,13 +8,18 @@ from typing import Any
 
 from ._http import HTTPClient
 from .config import Config
-from .exceptions import FawaterakConfigException
+from .exceptions import FawaterakConfigException, FawaterakValidationException
 from .models.common import (
 	CartItem,
 	Customer,
 	DiscountData,
 	RedirectionUrls,
 	TaxData,
+)
+from .models.einvoice import (
+	EInvoice,
+	EinvoiceCreationResult,
+	EinvoiceFilter,
 )
 from .models.payment_method import PaymentMethod
 from .models.transaction import (
@@ -229,6 +234,146 @@ class FawaterakClient:
 	) -> WebhooksParseResult:
 		"""Verify and parse a webhook payload of the given type."""
 		return parse_webhook(payload, self._require_vendor_api_key(), webhook_type)
+
+	def create_einvoice(
+		self,
+		*,
+		currency: str,
+		customer: Customer,
+		cart_items: list[CartItem],
+		cart_total: float,
+		due_date: str | None = None,
+		invoice_number: str | None = None,
+		pay_load: dict[str, Any] | None = None,
+		redirection_urls: RedirectionUrls | None = None,
+	) -> EinvoiceCreationResult:
+		"""Creates an e-invoice"""
+		if customer.customer_unique_id is None:
+			raise FawaterakValidationException(
+				"customer_unique_id is necessary.", status_code=400
+			)
+
+		payload: dict[str, Any] = {
+			"currency": currency,
+			"cartTotal": cart_total,
+			"customer": customer.to_dict(),
+			"cartItems": [item.to_dict() for item in cart_items],
+		}
+
+		if due_date is not None:
+			payload["due_date"] = due_date
+		if invoice_number is not None:
+			payload["invoice_number"] = invoice_number
+		if pay_load is not None:
+			payload["payLoad"] = pay_load
+		if redirection_urls is not None:
+			payload["redirectionUrls"] = redirection_urls.to_dict()
+
+		response = self._http.request("POST", "/api/v3/createEinvoice", json=payload)
+		data = response.get("data", {})
+
+		return EinvoiceCreationResult.from_dict(data)
+
+	def get_einvoice(self, invoice_id: int) -> EInvoice:
+		"""Gets a specific e-invoice based on invoice_id"""
+		payload = {"invoice_id": invoice_id}
+
+		response = self._http.request("POST", "/api/v3/invoice/get", json=payload)
+		data = response.get("data", {})
+
+		return EInvoice.from_dict(data)
+
+	def list_einvoices(
+		self, einvoice_filter: EinvoiceFilter | None = None
+	) -> Page[EInvoice]:
+		"""
+		Lists e-invoice based on filter (if found).
+
+		Returns in paginated response in pages of 10.
+		"""
+		payload = {}
+
+		if einvoice_filter is not None:
+			payload["filter"] = einvoice_filter.to_dict()
+
+		response = self._http.request("POST", "/api/v3/invoice/index", json=payload)
+		page = response.get("data", {})
+		data = page.get("data", {})
+		items = [EInvoice.from_dict(item) for item in data]
+
+		return Page(
+			data=items,
+			per_page=int(page.get("per_page", 0)),
+			total=int(page.get("total", 0)),
+			current_page=int(page.get("current_page", 0)),
+			last_page=int(page.get("last_page", 0)),
+			from_item=int(page.get("from")) if page.get("from") is not None else None,
+			to_item=int(page.get("to")) if page.get("to") is not None else None,
+		)
+
+	def update_einvoice(
+		self,
+		*,
+		invoice_id: int,
+		customer: Customer,
+		currency: str | None = None,
+		products: list[CartItem] | None = None,
+		has_history: bool = False,
+		due_date: str | None = None,
+		invoice_number: str | None = None,
+		tags: str | None = None,
+	) -> EInvoice:
+		"""
+		Updates an existing e-invoice. When has_history is not set, currency and products are required and line items are replaced.
+
+		"""
+		if customer.customer_unique_id is None:
+			raise FawaterakValidationException(
+				"customer_unique_id is necessary.", status_code=400
+			)
+
+		payload = {"invoice_id": invoice_id, "customer": customer.to_dict()}
+
+		if due_date is not None:
+			payload["due_date"] = due_date
+		if invoice_number is not None:
+			payload["invoice_number"] = invoice_number
+		if tags is not None:
+			payload["tags"] = tags
+
+		if has_history:
+			payload["hasHistory"] = True
+		else:
+			if currency is None or products is None:
+				raise FawaterakValidationException(
+					"currency and products are required when has_history is False.",
+					status_code=400,
+				)
+			payload["currency"] = currency
+			payload["products"] = [item.to_dict() for item in products]
+
+		response = self._http.request("POST", "/api/v3/invoice/update", json=payload)
+		data = response.get("data", {})
+
+		return EInvoice.from_dict(data)
+
+	def delete_einvoice(self, invoice_id: int) -> bool:
+		"""
+		Deletes an unpaid e-invoice.
+
+		The API refuses deletion if active payment references block it.
+		(That's what docs say, can't replicate it)
+		Returns True on a successful deletion response.  
+		
+		Can't understand how they don't soft delete, they just go full 
+		delete, like not just a status saying deleted (Soft-deletion). 
+		"""
+		self._http.request(
+			"POST",
+			"/api/v3/invoice/delete",
+			json={"invoice_id": invoice_id},
+		)
+		return True
 
 	def close(self) -> None:
 		self._http.close()
