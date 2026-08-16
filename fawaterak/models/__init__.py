@@ -1,6 +1,7 @@
 """Public model exports for the Fawaterak SDK."""
 
 from .common import CartItem, Customer, DiscountData, RedirectionUrls, TaxData
+from .einvoice import EInvoice, EinvoiceCreationResult, EinvoiceFilter, EinvoiceProduct
 from .payment_method import PaymentMethod
 from .transaction import (
 	CardPaymentResult,
@@ -24,6 +25,10 @@ __all__ = [
 	"Customer",
 	"DirectPaymentResult",
 	"DiscountData",
+	"EInvoice",
+	"EinvoiceCreationResult",
+	"EinvoiceFilter",
+	"EinvoiceProduct",
 	"HostedCheckoutResult",
 	"MobileWalletResult",
 	"Page",
