@@ -9,10 +9,10 @@ Use this library at your own risk.
 
 ## Status
 
-This project is in early development (`0.3.1`). The foundational OAuth/HTTP
+This project is in early development (`0.4.0`). The foundational OAuth/HTTP
 layers, the core transaction client (payment methods, create/fetch/list
-transactions), and the framework-agnostic webhook verification/parsers are
-implemented. E-invoicing, refunds, and tokenization are still on the roadmap.
+transactions), the framework-agnostic webhook verification/parsers, and
+e-invoicing are implemented. Refunds and tokenization are still on the roadmap.
 
 ## Features
 
@@ -26,8 +26,12 @@ implemented. E-invoicing, refunds, and tokenization are still on the roadmap.
 - **Exception hierarchy** for network, authentication, validation, and transient
   API errors.
 - **`FawaterakClient`** with `get_payment_methods`, `create_transaction`,
-  `get_transaction`, and `list_transactions` covering the core transaction flow.
+	`get_transaction`, and `list_transactions` covering the core transaction flow.
+- **E-invoicing** with `create_einvoice`, `get_einvoice`, `list_einvoices`,
+	`update_einvoice`, and `delete_einvoice` for shareable, multi-attempt payment
+	links.
 - **Webhook verification and parsing** with HMAC signature checks and typed
+
   event dataclasses (`PaidWebhookEvent`, `FailedWebhookEvent`,
   `CancelWebhookEvent`, `RefundWebhookEvent`).
 - **Two transaction modes** — hosted checkout (`result.url`) and direct payment
@@ -156,6 +160,67 @@ page = client.list_transactions(
 for item in page.data:
 	print(item.transaction_id, item.status_text)
 ```
+
+## E-invoicing
+
+Create and manage multi-attempt payment links. The customer can pay at any time
+within the due date and retry with different payment methods.
+
+```python
+from fawaterak import CartItem, Customer
+from datetime import date
+
+# Create an e-invoice (requires customer_unique_id)
+created = client.create_einvoice(
+	currency="EGP",
+	customer=Customer(
+		first_name="Ahmed",
+		last_name="Ali",
+		customer_unique_id="user_12345",
+	),
+	cart_items=[CartItem(name="Order total", price=100.0, quantity=1)],
+	cart_total=100.0,
+)
+print(created.url)  # hosted payment link
+
+# Fetch, list, update, and delete
+invoice = client.get_einvoice(created.invoice_id)
+
+page = client.list_einvoices()
+for item in page.data:
+	print(item.invoice_id, item.status)
+
+# Replace line items (default; requires currency + products)
+updated = client.update_einvoice(
+	invoice_id=created.invoice_id,
+	customer=Customer(
+		first_name="Ahmed",
+		last_name="Ali",
+		customer_unique_id="user_12345",
+	),
+	currency="EGP",
+	products=[CartItem(name="Updated item", price=200.0, quantity=2)],
+)
+
+# Update metadata only, preserving existing line items
+metadata = client.update_einvoice(
+	invoice_id=created.invoice_id,
+	customer=Customer(
+		first_name="Ahmed",
+		last_name="Ali",
+		customer_unique_id="user_12345",
+	),
+	has_history=True,
+	invoice_number="INV-001",
+	tags="monthly",
+)
+
+client.delete_einvoice(created.invoice_id)
+```
+
+`has_history=True` tells the API to skip currency/product validation and keep
+the existing line items, so you can update fields like `invoice_number` or
+`tags` without resending the cart.
 
 ## Webhooks
 
