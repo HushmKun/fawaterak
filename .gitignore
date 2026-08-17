@@ -13,3 +13,6 @@ wheels/
 
 # Environment variables
 .env
+
+# Docs
+site/

@@ -1,0 +1,29 @@
+:root {
+  /* Brand Tokens */
+  --brand-blue: #0052FF;
+  --brand-cyan: #00C2FF;
+
+  /* Light Theme (Default) */
+  --bg-base: #F8FAFC;
+  --bg-surface: #FFFFFF;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --primary: #0052FF;
+  --primary-hover: #0040CC;
+  --accent: #00C2FF;
+  --border: #E2E8F0;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07);
+}
+
+[data-theme="dark"] {
+  /* Dark Theme */
+  --bg-base: #0B132B;
+  --bg-surface: #172554;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --primary: #3B82F6;
+  --primary-hover: #60A5FA;
+  --accent: #38BDF8;
+  --border: #1E293B;
+  --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+}
