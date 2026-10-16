@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Modified
+
+- Integration tests (`@pytest.mark.integration`) are now deselected by default;
+  run them explicitly with `uv run pytest -m integration`.
+- Integration test fixtures pin `environment="staging"`, so a shell with
+  `FAWATERAK_ENV=production` can no longer send live refunds, invoices, or
+  transactions to production.
+
 ## [0.5.0] - 2026-10-16
 
 ### Added
