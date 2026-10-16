@@ -22,6 +22,11 @@ from .models.einvoice import (
 	EinvoiceFilter,
 )
 from .models.payment_method import PaymentMethod
+from .models.refund import (
+	RefundCreationResult,
+	RefundRequest,
+	RefundType,
+)
 from .models.transaction import (
 	DirectPaymentResult,
 	HostedCheckoutResult,
@@ -372,6 +377,106 @@ class FawaterakClient:
 			"POST",
 			"/api/v3/invoice/delete",
 			json={"invoice_id": invoice_id},
+		)
+		return True
+
+	@staticmethod
+	def _coerce_refund_type(refund_type: RefundType | int | str) -> RefundType:
+		"""Accept `RefundType`, or the int/str codes seen in dashboard exports."""
+		if isinstance(refund_type, RefundType):
+			return refund_type
+		code = str(refund_type)
+		try:
+			return RefundType(code)
+		except ValueError:
+			raise ValueError(
+				"refund_type must be one of RefundType "
+				f"([0-3] for {'/'.join(t.name.lower() for t in RefundType)}); "
+				f"got {refund_type!r}."
+			) from None
+
+	def get_refund_types(self, lang: str = "en") -> dict[str, str]:
+		"""Return the refund type codes accepted by create_refund, keyed as
+		stringified ints, mapped to their localized label."""
+		response = self._http.request(
+			"POST", "/api/v3/refund/refundTypes", json={"lang": lang}
+		)
+		return response.get("data", {})
+
+	def get_refund_reasons(self, lang: str = "en") -> list[str]:
+		"""Return the valid `reason` strings accepted by create_refund."""
+		response = self._http.request(
+			"POST", "/api/v3/refund/refundReasons", json={"lang": lang}
+		)
+		return list(response.get("data", []))
+
+	def create_refund(
+		self,
+		*,
+		refund_type: RefundType | int | str,
+		refund_id: int,
+		reason: str,
+		refundable_amount: float,
+		comment: str | None = None,
+	) -> RefundCreationResult:
+		"""Submit a refund request for a paid invoice or transaction.
+
+		- refund_type: which record kind refund_id points at
+		  (RefundType, its int, or its string code).
+		- refund_id: invoice id or transaction id for the chosen refund_type.
+		- reason: one of the strings from get_refund_reasons().
+		- refundable_amount: partial or full amount; must not exceed the
+		  remaining refundable balance.
+		- comment: optional internal note (only for your vendor dashboard).
+		"""
+		payload: dict[str, Any] = {
+			"refund_type": self._coerce_refund_type(refund_type).value,
+			"refund_id": refund_id,
+			"reason": reason,
+			"refundable_amount": refundable_amount,
+		}
+		if comment is not None:
+			payload["comment"] = comment
+
+		response = self._http.request("POST", "/api/v3/refund/create", json=payload)
+		return RefundCreationResult.from_dict(response)
+
+	def list_refunds(self, page: int = 1) -> Page[RefundRequest]:
+		"""Return a page (10 per page, API-fixed) of this vendor's refund requests."""
+		response = self._http.request(
+			"POST", "/api/v3/refund/index", json={"page": page}
+		)
+
+		items = [RefundRequest.from_dict(item) for item in response.get("data", [])]
+
+		return Page(
+			data=items,
+			total=int(response.get("total", 0)),
+			per_page=int(response.get("per_page", 10)),
+			current_page=int(response.get("current_page", 1)),
+			last_page=int(response.get("last_page", 1)),
+			from_item=response.get("from"),
+			to_item=response.get("to"),
+		)
+
+	def get_refund(self, refund_id: int) -> RefundRequest | None:
+		"""Fetch one refund request by id.
+
+		The API answers 200 with an empty object when the id is unknown, which
+		this method surfaces as None.
+		"""
+		response = self._http.request("GET", f"/api/v3/refund/details/{refund_id}")
+		data = response.get("data", response)
+		if not data:
+			return None
+		return RefundRequest.from_dict(data)
+
+	def delete_refund(self, refund_id: int) -> bool:
+		"""Cancel a pending refund request; approved refunds cannot be deleted."""
+		self._http.request(
+			"POST",
+			"/api/v3/refund/delete",
+			json={"refund_id": refund_id},
 		)
 		return True
 
