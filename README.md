@@ -11,8 +11,8 @@ Use this library at your own risk.
 
 This project is in early development (`0.4.1`). The foundational OAuth/HTTP
 layers, the core transaction client (payment methods, create/fetch/list
-transactions), the framework-agnostic webhook verification/parsers, and
-e-invoicing are implemented. Refunds and tokenization are still on the roadmap.
+transactions), the framework-agnostic webhook verification/parsers, e-invoicing,
+and refunds are implemented. Tokenization is still on the roadmap.
 
 ## Features
 
@@ -30,6 +30,9 @@ e-invoicing are implemented. Refunds and tokenization are still on the roadmap.
 - **E-invoicing** with `create_einvoice`, `get_einvoice`, `list_einvoices`,
 	`update_einvoice`, and `delete_einvoice` for shareable, multi-attempt payment
 	links.
+- **Refunds** with `get_refund_types`, `get_refund_reasons`, `create_refund`,
+	`list_refunds`, `get_refund`, and `delete_refund` for partial/full refunds of
+	paid invoices and transactions.
 - **Webhook verification and parsing** with HMAC signature checks and typed
 
   event dataclasses (`PaidWebhookEvent`, `FailedWebhookEvent`,
@@ -221,6 +224,40 @@ client.delete_einvoice(created.invoice_id)
 `has_history=True` tells the API to skip currency/product validation and keep
 the existing line items, so you can update fields like `invoice_number` or
 `tags` without resending the cart.
+
+## Refunds
+
+Submit partial or full refund requests for paid invoices and transactions, then
+poll their status.
+
+```python
+from fawaterak import RefundType
+
+types = client.get_refund_types()
+reasons = client.get_refund_reasons()
+
+# Submit a refund for an API-created transaction (refund_id = transaction id)
+result = client.create_refund(
+	refund_type=RefundType.INTEGRATION_TRANSACTION,
+	refund_id=3485,
+	reason="Customer changed their mind",
+	refundable_amount=100.0,
+	comment="Order #1001",
+)
+print(result.message)  # "Refunded successfully"
+
+# Poll the request status
+page = client.list_refunds(page=1)
+for refund in page.data:
+	print(refund.id, refund.status, refund.can_delete)
+
+refund = client.get_refund(827)
+client.delete_refund(827)  # only works while the request is still pending
+```
+
+`refund_type` also accepts the raw int or string codes (`3`, `"0"`). Only
+pending refund requests can be deleted; approved refunds are final. See the
+[refunds guide](https://hushmkun.github.io/fawaterak/refunds/) for details.
 
 ## Webhooks
 

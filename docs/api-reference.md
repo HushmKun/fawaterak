@@ -19,6 +19,12 @@ This page is generated from the SDK source docstrings.
         - list_einvoices
         - update_einvoice
         - delete_einvoice
+        - get_refund_types
+        - get_refund_reasons
+        - create_refund
+        - list_refunds
+        - get_refund
+        - delete_refund
         - parse_paid_webhook
         - parse_failed_webhook
         - parse_cancel_webhook
@@ -66,6 +72,24 @@ This page is generated from the SDK source docstrings.
       show_root_full_path: false
 
 ::: fawaterak.models.einvoice.EinvoiceFilter
+    options:
+      show_source: false
+      show_root_heading: true
+      show_root_full_path: false
+
+::: fawaterak.models.refund.RefundType
+    options:
+      show_source: false
+      show_root_heading: true
+      show_root_full_path: false
+
+::: fawaterak.models.refund.RefundRequest
+    options:
+      show_source: false
+      show_root_heading: true
+      show_root_full_path: false
+
+::: fawaterak.models.refund.RefundCreationResult
     options:
       show_source: false
       show_root_heading: true

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-10-16
+
+### Added
+
+- Refunds support in `fawaterak.client.FawaterakClient`:
+  - `get_refund_types` — localized map of refund type codes to labels.
+  - `get_refund_reasons` — valid `reason` strings for refund submission.
+  - `create_refund` — submit a partial/full refund with `refund_type`,
+    `refund_id`, `reason`, and `refundable_amount`.
+  - `list_refunds` — paginated (10/page) refund request list.
+  - `get_refund` — fetch one refund request (returns `None` for unknown ids).
+  - `delete_refund` — cancel a pending (non-approved) refund request.
+- `RefundType` enum exchanging `RefundType` / int / str for the transaction
+  code conversion (`"0"`–`"3"`).
+- `fawaterak.models.refund`: `RefundRequest`, `RefundCreationResult`, and
+  `RefundType`.
+- Unit tests and staging integration tests covering the refund surface.
+
 ## [0.4.1] - 2026-08-16
 
 ### Added

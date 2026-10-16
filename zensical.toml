@@ -13,6 +13,7 @@ nav = [
   { "Get started" = "index.md" },
   { "Transactions" = "transactions.md" },
   { "E-invoicing" = "einvoicing.md" },
+  { "Refunds" = "refunds.md" },
   { "Webhooks" = "webhooks.md" },
   { "Error handling" = "error-handling.md" },
   { "API reference" = "api-reference.md" },
