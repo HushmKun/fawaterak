@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Modified
 
+- `Config.resolve(environment=...)` is now typed as `Literal["staging",
+  "production"]` (`fawaterak.config.Environment`) instead of `str`. Runtime
+  behavior is unchanged, but type checkers now flag misspelled environments,
+  and callers passing a plain `str` (e.g. a settings value) must narrow or
+  `cast` it first.
 - Integration tests (`@pytest.mark.integration`) are now deselected by default;
   run them explicitly with `uv run pytest -m integration`.
 - Integration test fixtures pin `environment="staging"`, so a shell with
