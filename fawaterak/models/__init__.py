@@ -3,6 +3,7 @@
 from .common import CartItem, Customer, DiscountData, RedirectionUrls, TaxData
 from .einvoice import EInvoice, EinvoiceCreationResult, EinvoiceFilter, EinvoiceProduct
 from .payment_method import PaymentMethod
+from .refund import RefundCreationResult, RefundRequest, RefundType
 from .transaction import (
 	CardPaymentResult,
 	DirectPaymentResult,
@@ -37,6 +38,9 @@ __all__ = [
 	"PaymentResult",
 	"RedirectionUrls",
 	"ReferenceCodeResult",
+	"RefundCreationResult",
+	"RefundRequest",
+	"RefundType",
 	"TaxData",
 	"TransactionData",
 	"TransactionExportItem",
