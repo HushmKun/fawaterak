@@ -53,6 +53,12 @@ print(result.message)  # "Refunded successfully"
 `refund_type` also accepts the raw int (`3`) or string code (`"3"`) for
 convenience.
 
+If the API rejects the refund (amount over the remaining balance, a reason
+not in `get_refund_reasons()`, or a `refund_id` that doesn't exist or isn't
+yours), it answers HTTP 400 and `create_refund` raises
+`FawaterakValidationException` carrying the API's `message`. An unknown
+`refund_type` raises the same exception before any request is sent.
+
 ## List and inspect refund requests
 
 ```python
