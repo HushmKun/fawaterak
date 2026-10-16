@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration test fixtures pin `environment="staging"`, so a shell with
   `FAWATERAK_ENV=production` can no longer send live refunds, invoices, or
   transactions to production.
+- `docs/refunds.md`: documents that `create_refund` raises
+  `FawaterakValidationException` when the API rejects a refund.
 
 ## [0.5.0] - 2026-10-16
 
