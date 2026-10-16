@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import pytest
 import requests_mock
@@ -438,10 +439,39 @@ class TestRefundStagingIntegration:
 
 	@staticmethod
 	def _all_refund_pages(staging_client: FawaterakClient) -> list[Page[RefundRequest]]:
-		pages = []
 		page = staging_client.list_refunds(page=1)
-		current = page.current_page
-		while current <= page.last_page:
-			pages.append(staging_client.list_refunds(page=current))
-			current += 1
+		pages = [page]
+		for number in range(page.current_page + 1, page.last_page + 1):
+			pages.append(staging_client.list_refunds(page=number))
 		return pages
+
+
+class TestAllRefundPagesHelper:
+	"""Unit coverage for the staging suite's pagination helper, which otherwise
+	only runs against the live API."""
+
+	@pytest.mark.parametrize("last_page", [1, 3])
+	def test_fetches_each_page_once(
+		self,
+		client: FawaterakClient,
+		requests_mock: requests_mock.Mocker,
+		last_page: int,
+	) -> None:
+		def respond(request: Any, context: Any) -> dict[str, Any]:
+			page = request.json()["page"]
+			return {
+				**REFUND_INDEX_RESPONSE,
+				"data": [{**REFUND_DETAILS_RESPONSE, "id": page}],
+				"current_page": page,
+				"last_page": last_page,
+			}
+
+		requests_mock.post(f"{BASE_URL}/api/v3/refund/index", json=respond)
+
+		pages = TestRefundStagingIntegration._all_refund_pages(client)
+
+		expected = list(range(1, last_page + 1))
+		assert [page.current_page for page in pages] == expected
+		assert [page.data[0].id for page in pages] == expected
+		requested = [r.json()["page"] for r in requests_mock.request_history]
+		assert requested == expected

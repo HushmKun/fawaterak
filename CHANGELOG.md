@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transactions to production.
 - `docs/refunds.md`: documents that `create_refund` raises
   `FawaterakValidationException` when the API rejects a refund.
+- The staging refund integration test no longer requests page 1 of
+  `list_refunds` twice when collecting all pages; a unit test now covers the
+  pagination helper.
 
 ## [0.5.0] - 2026-10-16
 
