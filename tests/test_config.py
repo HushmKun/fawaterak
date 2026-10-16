@@ -189,14 +189,18 @@ class TestResolveEnvironmentEdgeCases:
 
 	def test_invalid_environment_string_without_base_url_raises(self) -> None:
 		with pytest.raises(FawaterakConfigException, match="environment"):
-			Config.resolve(client_id="cid", client_secret="secret", environment="prod")
+			Config.resolve(
+				client_id="cid",
+				client_secret="secret",
+				environment="prod",  # ty: ignore[invalid-argument-type]
+			)
 
 	def test_invalid_environment_error_includes_offending_value(self) -> None:
 		with pytest.raises(FawaterakConfigException, match="not-a-real-env"):
 			Config.resolve(
 				client_id="cid",
 				client_secret="secret",
-				environment="not-a-real-env",
+				environment="not-a-real-env",  # ty: ignore[invalid-argument-type]
 			)
 
 	def test_invalid_environment_but_base_url_given_does_not_raise(self) -> None:
@@ -204,7 +208,7 @@ class TestResolveEnvironmentEdgeCases:
 		config = Config.resolve(
 			client_id="cid",
 			client_secret="secret",
-			environment="not-a-real-env",
+			environment="not-a-real-env",  # ty: ignore[invalid-argument-type]
 			base_url="https://mock.local",
 		)
 		assert config.base_url == "https://mock.local"

@@ -91,7 +91,7 @@ class Config(metaclass=SingletonMeta):
 		*,
 		client_id: str | None = None,
 		client_secret: str | None = None,
-		environment: str | None = None,
+		environment: Environment | None = None,
 		base_url: str | None = None,
 		vendor_api_key: str | None = None,
 		timeout: float = DEFAULT_TIMEOUT_SECONDS,
