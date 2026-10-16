@@ -94,6 +94,7 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.pytest.ini_options]
+addopts = "-m 'not integration'"
 markers = [
   "integration: live tests that hit the Fawaterak staging API (requires real credentials)",
 ]

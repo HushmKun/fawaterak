@@ -367,7 +367,7 @@ class TestRefundStagingIntegration:
 			for var in ("FAWATERAK_CLIENT_ID", "FAWATERAK_CLIENT_SECRET")
 		):
 			pytest.skip("Staging credentials not set")
-		return FawaterakClient(config=Config.resolve())
+		return FawaterakClient(config=Config.resolve(environment="staging"))
 
 	@pytest.fixture
 	def paid_transaction_id(self, staging_client: FawaterakClient) -> int:

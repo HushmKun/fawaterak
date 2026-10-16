@@ -1051,7 +1051,7 @@ class TestEinvoiceStagingIntegration:
 			for var in ("FAWATERAK_CLIENT_ID", "FAWATERAK_CLIENT_SECRET")
 		):
 			pytest.skip("Staging credentials not set")
-		return FawaterakClient(config=Config.resolve())
+		return FawaterakClient(config=Config.resolve(environment="staging"))
 
 	@pytest.fixture
 	def integration_customer(self) -> Customer:
@@ -1153,7 +1153,7 @@ class TestStagingIntegration:
 			for var in ("FAWATERAK_CLIENT_ID", "FAWATERAK_CLIENT_SECRET")
 		):
 			pytest.skip("Staging credentials not set")
-		config = Config.resolve()
+		config = Config.resolve(environment="staging")
 		return FawaterakClient(config=config)
 
 	def test_get_payment_methods_and_create_transaction(
