@@ -64,7 +64,7 @@ class RefundRequest:
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> RefundRequest:
 		return cls(
-			id=int(data.get("id")),  # ty: ignore[invalid-argument-type]
+			id=int(data["id"]),
 			refundable_amount=float(data.get("refundable_amount", 0)),
 			status=data.get("status", ""),
 			reason=data.get("reason", ""),

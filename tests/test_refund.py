@@ -10,6 +10,7 @@ import requests_mock
 from fawaterak._http import HTTPClient
 from fawaterak.client import FawaterakClient
 from fawaterak.config import Config
+from fawaterak.exceptions import FawaterakValidationException
 from fawaterak.models.refund import (
 	RefundCreationResult,
 	RefundRequest,
@@ -206,7 +207,7 @@ class TestCreateRefund:
 		}
 
 	def test_rejects_unknown_refund_type(self, client: FawaterakClient) -> None:
-		with pytest.raises(ValueError):
+		with pytest.raises(FawaterakValidationException):
 			client.create_refund(
 				refund_type="bogus",
 				refund_id=1,
@@ -293,6 +294,49 @@ class TestGetRefund:
 			f"{BASE_URL}/api/v3/refund/details/999999999", status_code=200, json={}
 		)
 		assert client.get_refund(999999999) is None
+
+	def test_returns_none_for_body_without_id(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.get(
+			f"{BASE_URL}/api/v3/refund/details/827",
+			status_code=200,
+			json={"status": "error", "message": "Refund not found"},
+		)
+		assert client.get_refund(827) is None
+
+	@pytest.mark.parametrize(
+		"refund_id",
+		[
+			"827?page=2",
+			"1/../../invoice",
+			"827#frag",
+			"..",
+			"a12",
+			"12312.0",
+			3.9,
+			True,
+			None,
+		],
+	)
+	def test_rejects_unsafe_refund_id_without_request(
+		self,
+		client: FawaterakClient,
+		requests_mock: requests_mock.Mocker,
+		refund_id: object,
+	) -> None:
+		with pytest.raises(FawaterakValidationException) as exc_info:
+			client.get_refund(refund_id)  # ty: ignore[invalid-argument-type]
+		assert exc_info.value.status_code == 400
+		assert requests_mock.call_count == 0
+
+	def test_accepts_numeric_string_id(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.get(
+			f"{BASE_URL}/api/v3/refund/details/827", json=REFUND_DETAILS_RESPONSE
+		)
+		assert client.get_refund("827").id == 827  # ty: ignore[invalid-argument-type, unresolved-attribute]
 
 
 class TestDeleteRefund:

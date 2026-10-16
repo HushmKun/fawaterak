@@ -389,10 +389,11 @@ class FawaterakClient:
 		try:
 			return RefundType(code)
 		except ValueError:
-			raise ValueError(
+			raise FawaterakValidationException(
 				"refund_type must be one of RefundType "
 				f"([0-3] for {'/'.join(t.name.lower() for t in RefundType)}); "
-				f"got {refund_type!r}."
+				f"got {refund_type!r}.",
+				status_code=400,
 			) from None
 
 	def get_refund_types(self, lang: str = "en") -> dict[str, str]:
@@ -465,9 +466,15 @@ class FawaterakClient:
 		The API answers 200 with an empty object when the id is unknown, which
 		this method surfaces as None.
 		"""
-		response = self._http.request("GET", f"/api/v3/refund/details/{refund_id}")
+		path_id = str(refund_id)
+		if not (path_id.isascii() and path_id.isdigit()):
+			raise FawaterakValidationException(
+				f"refund_id must be a positive integer; got {refund_id!r}.",
+				status_code=400,
+			)
+		response = self._http.request("GET", f"/api/v3/refund/details/{path_id}")
 		data = response.get("data", response)
-		if not data:
+		if not data or data.get("id") is None:
 			return None
 		return RefundRequest.from_dict(data)
 
