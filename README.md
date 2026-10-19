@@ -9,7 +9,7 @@ Use this library at your own risk.
 
 ## Status
 
-This project is in early development (`0.5.1`). The foundational OAuth/HTTP
+This project is in early development (`0.5.2`). The foundational OAuth/HTTP
 layers, the core transaction client (payment methods, create/fetch/list
 transactions), the framework-agnostic webhook verification/parsers, e-invoicing,
 and refunds are implemented. Tokenization is still on the roadmap.
@@ -42,6 +42,8 @@ and refunds are implemented. Tokenization is still on the roadmap.
   redirects, reference codes (Fawry/Aman/Masary), and mobile wallets.
 - **Typed dataclass models** (`Customer`, `CartItem`, `TransactionData`, `Page`,
   etc.) that serialize to the exact API payload shapes.
+- **Ships a `py.typed` marker**, so mypy, pyright, and ty check your calls
+  against the SDK's inline type hints.
 
 ## Installation
 
