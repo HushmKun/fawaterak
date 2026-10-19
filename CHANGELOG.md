@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-10-19
+
+### Fixed
+
+- `import fawaterak` failed on Python 3.9 and 3.10 in every release since
+  0.2.0. `fawaterak._http` imported `typing_extensions`, which is not a
+  declared dependency, and on 3.9 `fawaterak.webhooks.parsers` also built
+  `WebhooksParseResult` with a runtime `X | Y` union (3.10+ only). Neither
+  remains, so no new runtime dependency is needed.
+- The CI matrix only ever ran the runner's default Python (3.12):
+  `astral-sh/setup-uv@v3` ignored its `python-version` input. CI now uses
+  `setup-uv@v10.3.0`, which honors the input, and runs ruff/ty once in a 
+  separate `lint` job.
+
+### Added
+
+- `py.typed` marker, so type checkers use the SDK's inline type hints.
+- CI now tests Python 3.15.
+- CI builds the wheel on every supported Python and imports it in a clean
+  environment holding only its declared dependencies.
+
+### Modified
+
+- `FawaterakException`, and so every SDK exception, now derives from
+  `Exception` instead of `BaseException`. Generic `except Exception:` handlers
+  (framework error handlers, retry decorators, task runners) now catch SDK
+  errors; `except FawaterakException` code is unaffected. If you relied on SDK
+  errors escaping `except Exception`, catch `FawaterakException` before it.
+- The build backend now requires `uv_build>=0.13.1,<0.14`.
+
+### Removed
+
+- `python-dotenv` is no longer a runtime dependency; the SDK never imported
+  it. If your code uses `dotenv` and only got it through `fawaterak`, add
+  `python-dotenv` to your own dependencies.
+
 ## [0.5.1] - 2026-10-17
 
 ### Modified

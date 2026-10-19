@@ -2,20 +2,21 @@
 Fawaterak SDK exception module.
 
 ```
-FawaterakError
-├── FawaterakConnectionError        # network/timeout, safe to retry
-├── FawaterakWebhookError           # signature mismatch / malformed webhook body
-└── FawaterakAPIError               # non-2xx with parsed {status, message} body
-    ├── FawaterakAuthError          # 401 (after one failed refresh-and-retry)
-    ├── FawaterakValidationError    # 400/422
-    └── FawaterakTemporaryError     # 503 — safe to retry with backoff
+FawaterakException
+├── FawaterakConfigException            # missing credentials / unknown environment
+├── FawaterakConnectionException        # network/timeout, safe to retry
+├── FawaterakWebhookException           # signature mismatch / malformed webhook body
+└── FawaterakAPIException               # non-2xx with parsed {status, message} body
+    ├── FawaterakAuthException          # 401 (after one failed refresh-and-retry)
+    ├── FawaterakValidationException    # 400/422
+    └── FawaterakTemporaryException     # 503 — safe to retry with backoff
 ```
 """
 
 from __future__ import annotations
 
 
-class FawaterakException(BaseException):
+class FawaterakException(Exception):
 	"""Base class for every exception the SDK raises"""
 
 

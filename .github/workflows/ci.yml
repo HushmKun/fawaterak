@@ -3,32 +3,24 @@ name: CI
 on:
   push:
     branches: [master]
-    
+
   pull_request:
     branches: [master]
 
 jobs:
-  test:
+  # Lint and type-check once, on the newest Python. ty reads the installed
+  # dependencies, and the older versions locked for Python 3.9 (requests,
+  # pytest) are unannotated enough to produce false positives there.
+  lint:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version:
-          - "3.9"
-          - "3.10"
-          - "3.11"
-          - "3.12"
-          - "3.13"
-          - "3.14"
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@v10.3.0
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.14"
           enable-cache: true
 
       - name: Sync dependencies
@@ -43,5 +35,52 @@ jobs:
       - name: Type check (ty)
         run: uv run ty check .
 
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+          - "3.15"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
       - name: Test (pytest)
         run: uv run pytest
+
+      - name: Build wheel
+        run: uv build --wheel --out-dir dist
+
+      # Install only the wheel and its declared dependencies, outside the source
+      # tree, so an undeclared import or a file missing from the wheel fails here
+      # rather than on a user's machine.
+      - name: Import the wheel in a clean environment
+        working-directory: ${{ runner.temp }}
+        run: |
+          uv run --isolated --no-project --with "$GITHUB_WORKSPACE"/dist/*.whl python -I - <<'EOF'
+          import importlib.resources
+          import sys
+
+          import fawaterak
+
+          assert "site-packages" in fawaterak.__file__, f"imported from {fawaterak.__file__}"
+          assert importlib.resources.files("fawaterak").joinpath("py.typed").is_file(), "py.typed is missing from the wheel"
+          print(f"fawaterak {fawaterak.__version__} imports cleanly on Python {sys.version.split()[0]}")
+          EOF

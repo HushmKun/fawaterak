@@ -1,12 +1,15 @@
 # Error handling
 
 The SDK maps API and transport failures to a typed exception hierarchy rooted at
-`FawaterakException`.
+`FawaterakException`. It derives from the built-in `Exception`, so generic
+`except Exception:` handlers (framework error handlers, retry decorators, task
+runners) catch SDK errors too.
 
 ## Exception hierarchy
 
 ```
 FawaterakException
+├── FawaterakConfigException      # missing credentials / unknown environment
 ├── FawaterakConnectionException  # network/timeout failures
 ├── FawaterakAPIException         # non-2xx API responses
 │   ├── FawaterakAuthException    # 401 after one retry

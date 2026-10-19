@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Union
 
 from ..exceptions import FawaterakWebhookException
 from .events import (
@@ -21,13 +21,15 @@ from .verify import (
 	verify_tokenization_webhook,
 )
 
-WebhooksParseResult = (
-	PaidWebhookEvent
-	| FailedWebhookEvent
-	| CancelWebhookEvent
-	| RefundWebhookEvent
-	| TokenizationWebhookEvent
-)
+# A runtime alias, so `typing.Union` rather than `X | Y` (3.10+ only).
+# TODO: Update when dropping support for 3.9
+WebhooksParseResult = Union[
+	PaidWebhookEvent,
+	FailedWebhookEvent,
+	CancelWebhookEvent,
+	RefundWebhookEvent,
+	TokenizationWebhookEvent,
+]
 
 
 def parse_paid_webhook(
