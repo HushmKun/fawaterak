@@ -7,7 +7,6 @@ method (get_payment_methods, create_transaction, get_refund, ...).
 
 from __future__ import annotations
 
-import sys
 from importlib.metadata import version
 from platform import python_version, release, system
 from typing import Any
@@ -15,11 +14,6 @@ from typing import Any
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
-if sys.version_info >= (3, 11):
-	from typing import Self
-else:
-	from typing_extensions import Self
 
 from .auth import TokenManager
 from .exceptions import (
@@ -154,7 +148,7 @@ class HTTPClient:
 	def close(self) -> None:
 		self._session.close()
 
-	def __enter__(self) -> Self:
+	def __enter__(self) -> HTTPClient:  # noqa: PYI034   TODO: Update when dropping support for 3.9 & 3.10
 		return self
 
 	def __exit__(self, *exc_info: object) -> None:
