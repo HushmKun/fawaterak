@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import uuid
+from collections.abc import Iterator
 from datetime import date
+from unittest.mock import patch
 
 import pytest
 import requests_mock
@@ -14,11 +17,18 @@ from fawaterak._http import HTTPClient
 from fawaterak.client import FawaterakClient
 from fawaterak.config import Config
 from fawaterak.exceptions import (
+	FawaterakAPIException,
 	FawaterakConfigException,
 	FawaterakValidationException,
 	FawaterakWebhookException,
 )
-from fawaterak.models.common import CartItem, Customer, RedirectionUrls
+from fawaterak.models.common import (
+	CartItem,
+	Customer,
+	DiscountData,
+	RedirectionUrls,
+	TaxData,
+)
 from fawaterak.models.einvoice import (
 	EInvoice,
 	EinvoiceCreationResult,
@@ -49,6 +59,56 @@ def client() -> FawaterakClient:
 	)
 	http_client = HTTPClient(config.base_url, FakeTokenManager())  # ty: ignore[invalid-argument-type]
 	return FawaterakClient(config=config, http_client=http_client)
+
+
+class TestClientConstruction:
+	def test_builds_authenticated_http_client_from_config(
+		self, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/oauth/token",
+			json={"access_token": "live-token", "expires_in": 300},
+		)
+		requests_mock.get(
+			f"{BASE_URL}/api/v3/getTrPaymentmethods",
+			json={"status": "success", "data": []},
+		)
+		config = Config.resolve(
+			client_id="test-client-id",
+			client_secret="test-client-secret",
+			base_url=BASE_URL,
+			timeout=7.5,
+		)
+
+		FawaterakClient(config=config).get_payment_methods()
+
+		token_request, api_request = requests_mock.request_history
+		assert token_request.json() == {
+			"grant_type": "client_credentials",
+			"client_id": "test-client-id",
+			"client_secret": "test-client-secret",
+		}
+		assert api_request.headers["Authorization"] == "Bearer live-token"
+		assert api_request.timeout == 7.5
+
+
+class TestClientContextManager:
+	def test_with_returns_client_and_closes_http_client(
+		self, client: FawaterakClient
+	) -> None:
+		with patch.object(client._http, "close") as close:
+			with client as entered:
+				assert entered is client
+				close.assert_not_called()
+			close.assert_called_once_with()
+
+	def test_exception_in_with_block_propagates_and_still_closes(
+		self, client: FawaterakClient
+	) -> None:
+		with patch.object(client._http, "close") as close:
+			with pytest.raises(RuntimeError, match="boom"), client:
+				raise RuntimeError("boom")
+			close.assert_called_once_with()
 
 
 class TestGetPaymentMethods:
@@ -286,6 +346,39 @@ class TestCreateTransaction:
 		assert payload["tr_number"] == "TR-1001"
 		assert payload["list_style"] == "v"
 		assert payload["lang"] == "ar"
+
+	def test_request_payload_includes_payment_options(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/createTransaction",
+			json={
+				"status": "success",
+				"message": "Transaction link created",
+				"data": {
+					"intent_key": "550e8400-e29b-41d4-a716-446655440000",
+					"expires_in": 2592000,
+					"payment_data": {"systemReference": "4266311", "isoQr": "000201"},
+				},
+			},
+		)
+		client.create_transaction(
+			currency="EGP",
+			customer=Customer(first_name="Ahmed", last_name="Ali"),
+			cart_items=[CartItem(name="Order", price=100.0, quantity=1)],
+			cart_total=100.0,
+			payment_method_id=4,
+			mobile_wallet_number="01000000000",
+			auth_and_capture=1,
+			tax_data=TaxData(title="VAT", value=14.0),
+			discount_data=DiscountData(type="pcg", value=10.0),
+		)
+		payload = requests_mock.request_history[0].json()
+		assert payload["payment_method_id"] == 4
+		assert payload["mobileWalletNumber"] == "01000000000"
+		assert payload["authAndCapture"] == 1
+		assert payload["taxData"] == {"title": "VAT", "value": 14.0}
+		assert payload["discountData"] == {"type": "pcg", "value": 10.0}
 
 
 class TestGetTransaction:
@@ -1065,7 +1158,7 @@ class TestEinvoiceStagingIntegration:
 	@pytest.fixture
 	def created_invoice(
 		self, staging_client: FawaterakClient, integration_customer: Customer
-	) -> EinvoiceCreationResult:
+	) -> Iterator[EinvoiceCreationResult]:
 		result = staging_client.create_einvoice(
 			currency="EGP",
 			customer=integration_customer,
@@ -1075,7 +1168,12 @@ class TestEinvoiceStagingIntegration:
 		assert result.invoice_id
 		assert result.invoice_key
 		assert result.url.startswith("http")
-		return result
+		yield result
+		# Every test creates its own invoice, so delete it to keep scheduled runs
+		# from piling invoices up on the staging account. test_delete_einvoice
+		# has already deleted its own, so the API rejecting this is expected.
+		with contextlib.suppress(FawaterakAPIException):
+			staging_client.delete_einvoice(result.invoice_id)
 
 	def test_create_einvoice(self, created_invoice: EinvoiceCreationResult) -> None:
 		assert created_invoice.invoice_id > 0
