@@ -1,0 +1,49 @@
+name: Staging integration
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 0" # Sundays 09:00 (UTC+3) 
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-integration
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: staging
+    env:
+      FAWATERAK_CLIENT_ID: ${{ secrets.FAWATERAK_CLIENT_ID }}
+      FAWATERAK_CLIENT_SECRET: ${{ secrets.FAWATERAK_CLIENT_SECRET }}
+
+    steps:
+      - name: Require staging credentials
+        run: |
+          missing=0
+          for var in FAWATERAK_CLIENT_ID FAWATERAK_CLIENT_SECRET; do
+            if [ -z "${!var}" ]; then
+              echo "::error::$var is empty. Add it as a secret on the 'staging' environment."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.14"
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Integration tests (pytest)
+        run: uv run pytest -m integration -rs

@@ -1,5 +1,7 @@
 # fawaterak
 
+[![Staging integration](https://github.com/HushmKun/fawaterak/actions/workflows/integration.yml/badge.svg)](https://github.com/HushmKun/fawaterak/actions/workflows/integration.yml)
+
 > **Unofficial** Python SDK for the [Fawaterak](https://fawaterk.com/) API.
 
 **This project is not affiliated with, endorsed by, or sponsored by Fawaterak.**

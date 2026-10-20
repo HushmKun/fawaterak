@@ -8,14 +8,11 @@ on:
     branches: [master]
 
 jobs:
-  # Lint and type-check once, on the newest Python. ty reads the installed
-  # dependencies, and the older versions locked for Python 3.9 (requests,
-  # pytest) are unannotated enough to produce false positives there.
   lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.0
@@ -51,7 +48,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.0
@@ -62,15 +59,23 @@ jobs:
       - name: Sync dependencies
         run: uv sync --all-extras --dev
 
-      - name: Test (pytest)
-        run: uv run pytest
+      - name: Test (pytest) with coverage
+        run: uv run pytest --cov
+
+      # Runs even when the threshold fails the step above, so the summary
+      # shows which lines are missing.
+      - name: Coverage summary
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -f .coverage ]; then
+            echo "### Coverage on Python ${{ matrix.python-version }}" >> "$GITHUB_STEP_SUMMARY"
+            uv run coverage report --format=markdown --fail-under=0 >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Build wheel
         run: uv build --wheel --out-dir dist
 
-      # Install only the wheel and its declared dependencies, outside the source
-      # tree, so an undeclared import or a file missing from the wheel fails here
-      # rather than on a user's machine.
+
       - name: Import the wheel in a clean environment
         working-directory: ${{ runner.temp }}
         run: |

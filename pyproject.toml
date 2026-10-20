@@ -98,3 +98,12 @@ addopts = "-m 'not integration'"
 markers = [
   "integration: live tests that hit the Fawaterak staging API (requires real credentials)",
 ]
+
+# Read by `pytest --cov` (CI) and `coverage report`.
+[tool.coverage.run]
+source = ["fawaterak"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 95
+show_missing = true

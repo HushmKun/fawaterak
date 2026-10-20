@@ -422,3 +422,20 @@ class TestDecodeHelpers:
 	) -> None:
 		resp = _make_response(400, json_body=None, text="not json")
 		assert client._decode(resp) == {}
+
+
+class TestContextManager:
+	def test_with_returns_client_and_closes_session(self, client: HTTPClient) -> None:
+		with patch.object(client._session, "close") as close:
+			with client as entered:
+				assert entered is client
+				close.assert_not_called()
+			close.assert_called_once_with()
+
+	def test_exception_in_with_block_propagates_and_still_closes(
+		self, client: HTTPClient
+	) -> None:
+		with patch.object(client._session, "close") as close:
+			with pytest.raises(RuntimeError, match="boom"), client:
+				raise RuntimeError("boom")
+			close.assert_called_once_with()
