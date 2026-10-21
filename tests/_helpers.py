@@ -14,6 +14,6 @@ class FakeTokenManager:
 	def access_token(self) -> str:
 		return self._token
 
-	def refresh(self) -> None:
+	def refresh(self, stale_token: str | None = None) -> None:
 		self.refresh_count += 1
 		self._token = f"refreshed-{self._token}"

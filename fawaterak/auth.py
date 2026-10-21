@@ -16,6 +16,7 @@ from typing import Any
 
 import requests
 
+from ._http import DEFAULT_TIMEOUT_SECONDS
 from .exceptions import FawaterakAuthException, FawaterakConnectionException
 
 # Refresh this many seconds before the token's actual expiry, so a request
@@ -30,11 +31,13 @@ class TokenManager:
 		client_secret: str,
 		base_url: str,
 		session: requests.Session | None = None,
+		timeout: float = DEFAULT_TIMEOUT_SECONDS,
 	) -> None:
 		self._client_id = client_id
 		self._client_secret = client_secret
 		self._base_url = base_url.rstrip("/")
 		self._session = session or self._build_session()
+		self._timeout = timeout
 		self._lock = threading.Lock()
 
 		self._access_token: str | None = None
@@ -62,14 +65,20 @@ class TokenManager:
 				self._refresh_or_exchange()
 			return self._access_token
 
-	def refresh(self, force: bool = False) -> None:
-		"""Force a refresh regardless of cached expiry.
+	def refresh(self, force: bool = False, stale_token: str | None = None) -> None:
+		"""Refresh an expired token, or `stale_token` if it is still current.
 
-		Called by HTTPClient.request() after a 401 — the cached token may
-		look unexpired but the server has already invalidated it.
+		HTTPClient.request() passes the token a 401 rejected: the cached token
+		may look unexpired, but the server has already invalidated it. If
+		another thread already replaced that token, this does nothing, so
+		concurrent 401s share one refresh. `force` always refreshes.
 		"""
 		with self._lock:
-			if time.time() >= self._expires_at or force:
+			if (
+				force
+				or time.time() >= self._expires_at
+				or self._access_token == stale_token
+			):
 				self._refresh_or_exchange()
 
 	def _refresh_or_exchange(self) -> None:
@@ -88,7 +97,9 @@ class TokenManager:
 			}
 
 		try:
-			response = self._session.post(f"{self._base_url}/oauth/token", json=payload)
+			response = self._session.post(
+				f"{self._base_url}/oauth/token", json=payload, timeout=self._timeout
+			)
 		except requests.exceptions.RequestException as exc:
 			raise FawaterakConnectionException(str(exc)) from exc
 

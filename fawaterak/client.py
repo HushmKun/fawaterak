@@ -68,6 +68,7 @@ class FawaterakClient:
 				self._config.client_id,
 				self._config.client_secret,
 				self._config.base_url,
+				timeout=self._config.timeout,
 			)
 			self._http = HTTPClient(
 				self._config.base_url,
