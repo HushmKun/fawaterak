@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.3] - 2026-10-21
+
+### Fixed
+
+- A 401 for a token the server had revoked before its cached expiry raised
+  `FawaterakAuthException` instead of renewing the token. The retry resent the
+  same token, because `TokenManager.refresh()` only renewed expired tokens. A
+  401 now renews the token it rejected, and concurrent 401s for the same token
+  share one `/oauth/token` request.
+- Requests to `/oauth/token` had no timeout, so a stalled token endpoint
+  blocked the caller indefinitely. They now use `Config.timeout` (default 30
+  seconds), the same as API calls. `TokenManager` takes a matching `timeout`
+  argument.
+
 ## [0.5.2] - 2026-10-19
 
 ### Fixed
