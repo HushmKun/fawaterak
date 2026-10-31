@@ -9,13 +9,12 @@ from __future__ import annotations
 
 from importlib.metadata import version
 from platform import python_version, release, system
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from .auth import TokenManager
 from .exceptions import (
 	FawaterakAPIException,
 	FawaterakAuthException,
@@ -23,6 +22,11 @@ from .exceptions import (
 	FawaterakTemporaryException,
 	FawaterakValidationException,
 )
+
+if TYPE_CHECKING:
+	# auth imports DEFAULT_TIMEOUT_SECONDS from here, so a runtime import
+	# would be circular.
+	from .auth import TokenManager
 
 JSONDict = dict[str, Any]
 
@@ -59,12 +63,14 @@ class HTTPClient:
 		self._session = self._build_session()
 
 	def _build_session(self) -> requests.Session:
+		# The token this session sends, which a 401 names as stale.
+		self._token = self._token_manager.access_token
 		session = requests.Session()
 		adapter = HTTPAdapter(max_retries=_TRANSPORT_RETRY)
 		session.headers.update(
 			{
 				"User-Agent": f"Fawaterak-sdk/{version('fawaterak')} Python/{python_version()} {system()}/{release()}",
-				"Authorization": f"Bearer {self._token_manager.access_token}",
+				"Authorization": f"Bearer {self._token}",
 				"Accept": "application/json",
 				"Content-Type": "application/json",
 			}
@@ -93,6 +99,7 @@ class HTTPClient:
 		  - any other non-2xx                    -> FawaterakAPIError
 		"""
 		url = f"{self._base_url}{path}"
+		token = self._token
 
 		try:
 			response = self._session.request(
@@ -106,7 +113,9 @@ class HTTPClient:
 			raise FawaterakConnectionException(str(exc)) from exc
 
 		if response.status_code == 401 and not _retried:
-			self._token_manager.refresh()
+			# Name the rejected token, so the manager skips the refresh if
+			# another thread already replaced it.
+			self._token_manager.refresh(stale_token=token)
 			self._session = self._build_session()
 			return self.request(method, path, json=json, params=params, _retried=True)
 

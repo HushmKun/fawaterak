@@ -88,6 +88,7 @@ class TestClientConstruction:
 			"client_id": "test-client-id",
 			"client_secret": "test-client-secret",
 		}
+		assert token_request.timeout == 7.5
 		assert api_request.headers["Authorization"] == "Bearer live-token"
 		assert api_request.timeout == 7.5
 

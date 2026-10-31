@@ -167,6 +167,28 @@ class TestRefreshMethod:
 		manager.refresh()
 		assert requests_mock.request_history[0].json()["grant_type"] == "refresh_token"
 
+	def test_refreshes_unexpired_token_matching_stale_token(
+		self, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(f"{BASE_URL}/oauth/token", json=_token_response())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
+		manager._access_token = "revoked-token"
+		manager._expires_at = time.time() + 3600
+		manager.refresh(stale_token="revoked-token")
+		assert manager._access_token == ACCESS_TOKEN
+		assert len(requests_mock.request_history) == 1
+
+	def test_skips_refresh_when_stale_token_already_replaced(
+		self, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(f"{BASE_URL}/oauth/token", json=_token_response())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
+		manager._access_token = "replacement-token"
+		manager._expires_at = time.time() + 3600
+		manager.refresh(stale_token="revoked-token")
+		assert manager._access_token == "replacement-token"
+		assert len(requests_mock.request_history) == 0
+
 
 class TestPayloadAndUrl:
 	def test_client_credentials_payload(
@@ -206,6 +228,22 @@ class TestPayloadAndUrl:
 		)
 		manager.refresh()
 		assert requests_mock.request_history[0].url == f"{BASE_URL}/oauth/token"
+
+	def test_token_request_has_default_timeout(
+		self, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(f"{BASE_URL}/oauth/token", json=_token_response())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL)
+		manager.refresh()
+		assert requests_mock.request_history[0].timeout == 30.0
+
+	def test_token_request_uses_given_timeout(
+		self, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(f"{BASE_URL}/oauth/token", json=_token_response())
+		manager = TokenManager(CLIENT_ID, CLIENT_SECRET, BASE_URL, timeout=7.5)
+		manager.refresh()
+		assert requests_mock.request_history[0].timeout == 7.5
 
 
 class TestResponseParsing:

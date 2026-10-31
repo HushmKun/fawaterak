@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from typing import Any, cast
 from unittest.mock import patch
 
@@ -13,10 +14,12 @@ from _helpers import FakeTokenManager
 from requests.adapters import HTTPAdapter
 
 from fawaterak._http import HTTPClient
+from fawaterak.auth import TokenManager
 from fawaterak.exceptions import (
 	FawaterakAPIException,
 	FawaterakAuthException,
 	FawaterakConnectionException,
+	FawaterakException,
 	FawaterakTemporaryException,
 	FawaterakValidationException,
 )
@@ -323,6 +326,97 @@ class TestAuthRefreshFlow:
 		assert (
 			first_call.headers["Authorization"] != second_call.headers["Authorization"]
 		)
+
+
+class TestAuthRefreshWithRealTokenManager:
+	"""401 retries against a real TokenManager.
+
+	FakeTokenManager.refresh() always swaps the token, so it can't show
+	whether a 401 on a token that hasn't reached its cached expiry (one the
+	server revoked early) actually gets a new one.
+	"""
+
+	def test_401_on_unexpired_token_retries_with_a_new_token(
+		self, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/oauth/token",
+			[
+				{"json": {"access_token": "t1", "expires_in": 3600}},
+				{"json": {"access_token": "t2", "expires_in": 3600}},
+			],
+		)
+
+		def respond(request: Any, context: Any) -> dict[str, Any]:
+			if request.headers["Authorization"] == "Bearer t1":
+				context.status_code = 401
+				return {"message": "token revoked"}
+			return {"ok": True}
+
+		requests_mock.get(f"{BASE_URL}/me", json=respond)
+		client = HTTPClient(BASE_URL, TokenManager("id", "secret", BASE_URL))
+
+		assert client.request("GET", "/me") == {"ok": True}
+		sent = [
+			r.headers["Authorization"]
+			for r in requests_mock.request_history
+			if r.path == "/me"
+		]
+		assert sent == ["Bearer t1", "Bearer t2"]
+
+	def test_concurrent_401s_on_the_same_token_share_one_refresh(
+		self, requests_mock: requests_mock.Mocker, monkeypatch: pytest.MonkeyPatch
+	) -> None:
+		issued = 0
+
+		def issue_token(request: Any, context: Any) -> dict[str, Any]:
+			nonlocal issued
+			issued += 1
+			return {"access_token": f"t{issued}", "expires_in": 3600}
+
+		def respond(request: Any, context: Any) -> dict[str, Any]:
+			if request.headers["Authorization"] == "Bearer t1":
+				context.status_code = 401
+				return {"message": "token revoked"}
+			return {"ok": True}
+
+		requests_mock.post(f"{BASE_URL}/oauth/token", json=issue_token)
+		requests_mock.get(f"{BASE_URL}/me", json=respond)
+		manager = TokenManager("id", "secret", BASE_URL)
+		client = HTTPClient(BASE_URL, manager)
+
+		# requests_mock sends one request at a time, so hold callers at the
+		# refresh instead: every caller has its 401 for t1 before any of them
+		# refreshes, as when concurrent requests all fail on one token.
+		callers = 5
+		all_rejected = threading.Barrier(callers, timeout=5)
+		real_refresh = manager.refresh
+
+		def refresh_once_all_rejected(**kwargs: Any) -> None:
+			all_rejected.wait()
+			real_refresh(**kwargs)
+
+		monkeypatch.setattr(manager, "refresh", refresh_once_all_rejected)
+		results: list[Any] = []
+		results_lock = threading.Lock()
+
+		def call() -> None:
+			try:
+				outcome: Any = client.request("GET", "/me")
+			except FawaterakException as exc:
+				outcome = exc
+			with results_lock:
+				results.append(outcome)
+
+		threads = [threading.Thread(target=call) for _ in range(callers)]
+		for t in threads:
+			t.start()
+		for t in threads:
+			t.join()
+
+		assert results == [{"ok": True}] * callers
+		# The token HTTPClient started with, plus one refresh for all callers.
+		assert issued == 2
 
 
 class TestErrorStatusMapping:
