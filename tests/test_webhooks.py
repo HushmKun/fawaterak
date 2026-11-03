@@ -275,6 +275,17 @@ class TestParsePaidWebhook:
 		assert event.status == "paid"
 		assert event.payment_method == "Visa-Mastercard"
 		assert event.customer_data is not None
+		assert event.transaction_hash_key == self._payload()["transactionHashKey"]
+		assert event.hash_key is None
+
+	def test_keeps_legacy_hash_key_and_drops_api_key(self) -> None:
+		payload = self._payload()
+		payload["hashKey"] = "legacy-signature"
+		payload["api_key"] = "secret-vendor-key"
+		event = parse_paid_webhook(payload, VENDOR_API_KEY)
+		assert event.hash_key == "legacy-signature"
+		assert not hasattr(event, "api_key")
+		assert "secret-vendor-key" not in repr(event)
 
 	def test_raises_on_invalid_signature(self) -> None:
 		payload = self._payload()
@@ -323,6 +334,7 @@ class TestParseFailedWebhook:
 		event = parse_failed_webhook(payload, VENDOR_API_KEY)
 		assert isinstance(event, FailedWebhookEvent)
 		assert event.error_message == "declined"
+		assert event.hash_key == payload["hashKey"]
 
 	def test_raises_on_invalid_signature(self) -> None:
 		payload: dict[str, Any] = {
@@ -350,6 +362,7 @@ class TestParseCancelWebhook:
 		assert isinstance(event, CancelWebhookEvent)
 		assert event.reference_id == 998877
 		assert event.transaction_id == 12345
+		assert event.hash_key == payload["hashKey"]
 
 	def test_raises_on_invalid_signature(self) -> None:
 		payload: dict[str, Any] = {
@@ -387,6 +400,7 @@ class TestParseRefundWebhook:
 		assert isinstance(event, RefundWebhookEvent)
 		assert event.amount == "50.00"
 		assert event.reason == "Customer requested refund"
+		assert event.hash_key == payload["hashKey"]
 
 	def test_raises_on_invalid_signature(self) -> None:
 		payload: dict[str, Any] = {

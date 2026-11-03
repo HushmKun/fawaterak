@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fees`, `card_discount_amount`, `discount_bank_code`, `payment_token` and
   `financial_breakdown`. All default to `None`, so existing code that builds
   these objects keeps working.
+- Webhook events now keep the signature they were verified with: `hash_key`
+  on `PaidWebhookEvent`, `FailedWebhookEvent`, `CancelWebhookEvent` and
+  `RefundWebhookEvent`, plus `transaction_hash_key` on `PaidWebhookEvent`.
+  The legacy `api_key` field is deliberately not copied onto events.
 
 ## [0.5.3] - 2026-10-21
 

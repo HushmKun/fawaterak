@@ -42,6 +42,8 @@ class PaidWebhookEvent:
 	discount_bank_code: str | None = None
 	payment_token: str | None = None
 	financial_breakdown: FinancialBreakdown | None = None
+	transaction_hash_key: str | None = None
+	hash_key: str | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> PaidWebhookEvent:
@@ -72,6 +74,8 @@ class PaidWebhookEvent:
 			financial_breakdown=FinancialBreakdown.from_optional(
 				data.get("financial_breakdown")
 			),
+			transaction_hash_key=data.get("transactionHashKey"),
+			hash_key=data.get("hashKey"),
 		)
 
 
@@ -98,6 +102,7 @@ class FailedWebhookEvent:
 	paid_currency: str | None
 	error_message: str | None
 	response: str | None
+	hash_key: str | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> FailedWebhookEvent:
@@ -118,6 +123,7 @@ class FailedWebhookEvent:
 			paid_currency=data.get("paidCurrency"),
 			error_message=data.get("errorMessage"),
 			response=data.get("response"),
+			hash_key=data.get("hashKey"),
 		)
 
 
@@ -139,6 +145,7 @@ class CancelWebhookEvent:
 	pay_load: str | None
 	transaction_id: int | None
 	transaction_key: str | None
+	hash_key: str | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> CancelWebhookEvent:
@@ -153,6 +160,7 @@ class CancelWebhookEvent:
 				else None
 			),
 			transaction_key=data.get("transactionKey"),
+			hash_key=data.get("hashKey"),
 		)
 
 
@@ -173,6 +181,7 @@ class RefundWebhookEvent:
 	status: int
 	reason: str | None
 	approved_at: str | None
+	hash_key: str | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> RefundWebhookEvent:
@@ -183,6 +192,7 @@ class RefundWebhookEvent:
 			status=int(data.get("status", 0)),
 			reason=data.get("reason"),
 			approved_at=data.get("approvedAt"),
+			hash_key=data.get("hashKey"),
 		)
 
 

@@ -47,6 +47,12 @@ Paid webhooks also carry `fees`, `card_discount_amount`, `discount_bank_code`,
 amounts). Each is `None` when the payload omits it, for example on a
 pending webhook.
 
+Every event also keeps the signature it was verified with: `hash_key`, plus
+`transaction_hash_key` on paid webhooks. They are `None` when the payload
+omits them. The legacy `api_key` field some integrations send is never copied
+onto an event, so it cannot leak through `repr()` or logs; read it from the raw
+payload if you need it.
+
 ### Django
 
 ```python
