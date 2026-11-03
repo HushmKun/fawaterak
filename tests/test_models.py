@@ -16,6 +16,7 @@ from fawaterak.models.einvoice import (
 	EinvoiceProduct,
 )
 from fawaterak.models.payment_method import PaymentMethod
+from fawaterak.models.transaction import FinancialBreakdown
 
 
 class TestCustomer:
@@ -285,3 +286,46 @@ class TestEinvoiceFilter:
 			"invoice_number": "INV-001",
 			"customer_id": 99,
 		}
+
+
+class TestFinancialBreakdown:
+	def test_from_dict_coerces_numbers(self) -> None:
+		breakdown = FinancialBreakdown.from_dict(
+			{
+				"original_amount": "10.00",
+				"original_currency": "USD",
+				"converted_amount": 495.5,
+				"converted_currency": "EGP",
+				"exchange_rate": "49.55",
+				"exchange_rate_currency": "EGP",
+				"fees": 12,
+				"fees_currency": "EGP",
+				"settlement_amount": 483.5,
+				"settlement_currency": "EGP",
+			}
+		)
+		assert breakdown.original_amount == 10.0
+		assert breakdown.exchange_rate == 49.55
+		assert breakdown.fees == 12.0
+		assert breakdown.settlement_amount == 483.5
+		assert breakdown.converted_currency == "EGP"
+
+	def test_from_dict_egp_omits_conversion(self) -> None:
+		breakdown = FinancialBreakdown.from_dict(
+			{"original_amount": 100, "original_currency": "EGP", "fees": None}
+		)
+		assert breakdown.converted_amount is None
+		assert breakdown.exchange_rate is None
+		assert breakdown.fees is None
+
+	def test_from_optional_absent_or_null(self) -> None:
+		assert FinancialBreakdown.from_optional(None) is None
+		assert FinancialBreakdown.from_optional({}) is None
+		assert FinancialBreakdown.from_optional("not json") is None
+
+	def test_from_optional_json_string(self) -> None:
+		breakdown = FinancialBreakdown.from_optional(
+			'{"settlement_amount": 97.5, "settlement_currency": "EGP"}'
+		)
+		assert breakdown is not None
+		assert breakdown.settlement_amount == 97.5

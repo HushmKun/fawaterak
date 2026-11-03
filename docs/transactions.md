@@ -72,6 +72,10 @@ from datetime import date
 transaction = client.get_transaction(intent_key="550e8400-e29b-41d4-a716-446655440000")
 print(transaction.status_text)
 
+# Settlement amounts; None until the payment is settled.
+if transaction.financial_breakdown is not None:
+	print(transaction.financial_breakdown.settlement_amount)
+
 page = client.list_transactions(
 	start_date=date(2026, 1, 1),
 	end_date=date(2026, 1, 31),

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ..models.transaction import FinancialBreakdown
+
 
 @dataclass(frozen=True)
 class PaidWebhookEvent:
@@ -15,6 +17,7 @@ class PaidWebhookEvent:
 	`status`) and legacy invoice-style fields (`invoice_key`, `invoice_id`,
 	`invoice_status`).
 	Both field sets are optional because a given payload carries one or the other.
+	`financial_breakdown` is only present on paid webhooks after settlement.
 	Webhook body encoding (json, x-www-form-urlencoded), to force json add `_json`
 	to the end of the webhook url.
 
@@ -34,6 +37,13 @@ class PaidWebhookEvent:
 	paid_at: str | None
 	reference_number: str | None
 	customer_data: dict[str, Any] | None
+	fees: str | None = None
+	card_discount_amount: str | None = None
+	discount_bank_code: str | None = None
+	payment_token: str | None = None
+	financial_breakdown: FinancialBreakdown | None = None
+	transaction_hash_key: str | None = None
+	hash_key: str | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> PaidWebhookEvent:
@@ -57,6 +67,15 @@ class PaidWebhookEvent:
 			paid_at=data.get("paidAt"),
 			reference_number=data.get("referenceNumber"),
 			customer_data=data.get("customerData"),
+			fees=data.get("fees"),
+			card_discount_amount=data.get("cardDiscountAmount"),
+			discount_bank_code=data.get("discountBankCode"),
+			payment_token=data.get("paymentToken"),
+			financial_breakdown=FinancialBreakdown.from_optional(
+				data.get("financial_breakdown")
+			),
+			transaction_hash_key=data.get("transactionHashKey"),
+			hash_key=data.get("hashKey"),
 		)
 
 
@@ -83,6 +102,7 @@ class FailedWebhookEvent:
 	paid_currency: str | None
 	error_message: str | None
 	response: str | None
+	hash_key: str | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> FailedWebhookEvent:
@@ -103,6 +123,7 @@ class FailedWebhookEvent:
 			paid_currency=data.get("paidCurrency"),
 			error_message=data.get("errorMessage"),
 			response=data.get("response"),
+			hash_key=data.get("hashKey"),
 		)
 
 
@@ -124,6 +145,7 @@ class CancelWebhookEvent:
 	pay_load: str | None
 	transaction_id: int | None
 	transaction_key: str | None
+	hash_key: str | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> CancelWebhookEvent:
@@ -138,6 +160,7 @@ class CancelWebhookEvent:
 				else None
 			),
 			transaction_key=data.get("transactionKey"),
+			hash_key=data.get("hashKey"),
 		)
 
 
@@ -158,6 +181,7 @@ class RefundWebhookEvent:
 	status: int
 	reason: str | None
 	approved_at: str | None
+	hash_key: str | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> RefundWebhookEvent:
@@ -168,6 +192,7 @@ class RefundWebhookEvent:
 			status=int(data.get("status", 0)),
 			reason=data.get("reason"),
 			approved_at=data.get("approvedAt"),
+			hash_key=data.get("hashKey"),
 		)
 
 

@@ -2,10 +2,70 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from typing import Any, Generic, TypeVar
 
 T = TypeVar("T")
+
+
+def _optional_float(value: Any) -> float | None:
+	return float(value) if value not in (None, "") else None
+
+
+@dataclass(frozen=True)
+class FinancialBreakdown:
+	"""
+	Settlement amounts stored when a payment was settled.
+
+	`converted_amount`, `converted_currency` and `exchange_rate` are set only
+	when `original_currency` is not EGP. `settlement_amount` is the net amount
+	credited to the vendor balance.
+
+	maps to https://app.fawaterk.com/documentation#models/FinancialBreakdown
+	"""
+
+	original_amount: float | None = None
+	original_currency: str | None = None
+	converted_amount: float | None = None
+	converted_currency: str | None = None
+	exchange_rate: float | None = None
+	exchange_rate_currency: str | None = None
+	fees: float | None = None
+	fees_currency: str | None = None
+	settlement_amount: float | None = None
+	settlement_currency: str | None = None
+
+	@classmethod
+	def from_dict(cls, data: dict[str, Any]) -> FinancialBreakdown:
+		return cls(
+			original_amount=_optional_float(data.get("original_amount")),
+			original_currency=data.get("original_currency"),
+			converted_amount=_optional_float(data.get("converted_amount")),
+			converted_currency=data.get("converted_currency"),
+			exchange_rate=_optional_float(data.get("exchange_rate")),
+			exchange_rate_currency=data.get("exchange_rate_currency"),
+			fees=_optional_float(data.get("fees")),
+			fees_currency=data.get("fees_currency"),
+			settlement_amount=_optional_float(data.get("settlement_amount")),
+			settlement_currency=data.get("settlement_currency"),
+		)
+
+	@classmethod
+	def from_optional(cls, value: Any) -> FinancialBreakdown | None:
+		"""Parse a breakdown that may be absent, null, or a JSON string.
+
+		The API sends null until a balance row exists, and omits it from
+		pending webhooks. Form-encoded webhook bodies carry it as a JSON string.
+		"""
+		if isinstance(value, str):
+			try:
+				value = json.loads(value)
+			except ValueError:
+				return None
+		if not isinstance(value, dict) or not value:
+			return None
+		return cls.from_dict(value)
 
 
 class PaymentResult:
@@ -170,6 +230,7 @@ class TransactionData:
 	due_date: str | None
 	transaction_link: str
 	transaction_history: list[PaymentMethodHistoryItem] = field(default_factory=list)
+	financial_breakdown: FinancialBreakdown | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> TransactionData:
@@ -197,6 +258,9 @@ class TransactionData:
 			due_date=data.get("due_date"),
 			transaction_link=data.get("transaction_link", ""),
 			transaction_history=history,
+			financial_breakdown=FinancialBreakdown.from_optional(
+				data.get("financial_breakdown")
+			),
 		)
 
 

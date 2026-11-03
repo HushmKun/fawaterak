@@ -83,6 +83,33 @@ async def handle_paid_webhook(request: Request):
 	return {"status": "ok"}
 ```
 
+## Event fields
+
+Paid webhooks carry settlement details on top of the payment status:
+
+| Field | Meaning |
+|-------|---------|
+| `fees` | Fee charged on the payment |
+| `card_discount_amount`, `discount_bank_code` | Bank card discount, when one applied |
+| `payment_token` | Saved card token, for tokenization flows |
+| `financial_breakdown` | A `FinancialBreakdown`: original, converted, fee and settlement amounts. Only sent once the payment is settled. |
+
+```python
+event = client.parse_paid_webhook(payload)
+
+if event.financial_breakdown is not None:
+	print(event.financial_breakdown.settlement_amount)
+	print(event.financial_breakdown.settlement_currency)
+```
+
+Every event also keeps the signature it was verified with: `hash_key`, plus
+`transaction_hash_key` on paid webhooks.
+
+Any of these fields is `None` when the payload omits it, for example on a
+pending paid webhook. The legacy `api_key` field some integrations send is
+never copied onto an event, so it cannot leak through `repr()` or logs; read
+it from the raw payload if you need it.
+
 ## Other webhook types
 
 ```python

@@ -59,6 +59,18 @@ This page is generated from the SDK source docstrings.
       show_root_heading: true
       show_root_full_path: false
 
+::: fawaterak.models.transaction.TransactionData
+    options:
+      show_source: false
+      show_root_heading: true
+      show_root_full_path: false
+
+::: fawaterak.models.transaction.FinancialBreakdown
+    options:
+      show_source: false
+      show_root_heading: true
+      show_root_full_path: false
+
 ::: fawaterak.models.einvoice.EInvoice
     options:
       show_source: false
@@ -90,6 +102,32 @@ This page is generated from the SDK source docstrings.
       show_root_full_path: false
 
 ::: fawaterak.models.refund.RefundCreationResult
+    options:
+      show_source: false
+      show_root_heading: true
+      show_root_full_path: false
+
+## Webhook events
+
+::: fawaterak.webhooks.events.PaidWebhookEvent
+    options:
+      show_source: false
+      show_root_heading: true
+      show_root_full_path: false
+
+::: fawaterak.webhooks.events.FailedWebhookEvent
+    options:
+      show_source: false
+      show_root_heading: true
+      show_root_full_path: false
+
+::: fawaterak.webhooks.events.CancelWebhookEvent
+    options:
+      show_source: false
+      show_root_heading: true
+      show_root_full_path: false
+
+::: fawaterak.webhooks.events.RefundWebhookEvent
     options:
       show_source: false
       show_root_heading: true

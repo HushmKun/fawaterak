@@ -11,7 +11,7 @@ Use this library at your own risk.
 
 ## Status
 
-This project is in early development (`0.5.3`). The foundational OAuth/HTTP
+This project is in early development (`0.5.4`). The foundational OAuth/HTTP
 layers, the core transaction client (payment methods, create/fetch/list
 transactions), the framework-agnostic webhook verification/parsers, e-invoicing,
 and refunds are implemented. Tokenization is still on the roadmap.
@@ -158,6 +158,10 @@ from datetime import date
 
 transaction = client.get_transaction(intent_key="550e8400-e29b-41d4-a716-446655440000")
 print(transaction.status_text)
+
+# Settlement amounts; None until the payment is settled.
+if transaction.financial_breakdown is not None:
+	print(transaction.financial_breakdown.settlement_amount)
 
 page = client.list_transactions(
 	start_date=date(2026, 1, 1),
@@ -350,6 +354,12 @@ event = client.parse_webhook(payload, WebhookType.REFUND)
 
 You can also call the standalone functions in `fawaterak.webhooks` directly if
 you prefer not to instantiate `FawaterakClient` for webhook handlers.
+
+Paid webhook events also expose `fees`, `card_discount_amount`,
+`discount_bank_code`, `payment_token` and, once settled, `financial_breakdown`.
+Every event keeps the signature it was verified with (`hash_key`, plus
+`transaction_hash_key` on paid webhooks). The legacy `api_key` field is never
+copied onto an event.
 
 Paid and failed webhooks can be delivered as JSON or form-urlencoded; cancel
 and refund webhooks are always JSON. The parsers raise
