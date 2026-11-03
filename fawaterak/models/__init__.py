@@ -7,6 +7,7 @@ from .refund import RefundCreationResult, RefundRequest, RefundType
 from .transaction import (
 	CardPaymentResult,
 	DirectPaymentResult,
+	FinancialBreakdown,
 	HostedCheckoutResult,
 	MobileWalletResult,
 	Page,
@@ -30,6 +31,7 @@ __all__ = [
 	"EinvoiceCreationResult",
 	"EinvoiceFilter",
 	"EinvoiceProduct",
+	"FinancialBreakdown",
 	"HostedCheckoutResult",
 	"MobileWalletResult",
 	"Page",

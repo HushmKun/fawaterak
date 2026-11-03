@@ -428,6 +428,43 @@ class TestGetTransaction:
 		assert result.status_text == "paid"
 		assert len(result.transaction_history) == 1
 		assert result.transaction_history[0].method_name == "Fawry"
+		assert result.financial_breakdown is None
+
+	def test_parses_financial_breakdown(
+		self, client: FawaterakClient, requests_mock: requests_mock.Mocker
+	) -> None:
+		requests_mock.post(
+			f"{BASE_URL}/api/v3/getTransactionData",
+			json={
+				"status": "success",
+				"data": {
+					"intent_key": "550e8400-e29b-41d4-a716-446655440000",
+					"transaction_id": 12345,
+					"paid": 1,
+					"status_text": "paid",
+					"total": 10,
+					"currency": "USD",
+					"payment_method": "Visa-Mastercard",
+					"transaction_link": "https://app.fawaterk.com/transactions/550e8400",
+					"financial_breakdown": {
+						"original_amount": 10,
+						"original_currency": "USD",
+						"converted_amount": 495.5,
+						"converted_currency": "EGP",
+						"exchange_rate": 49.55,
+						"exchange_rate_currency": "EGP",
+						"fees": 12,
+						"fees_currency": "EGP",
+						"settlement_amount": 483.5,
+						"settlement_currency": "EGP",
+					},
+				},
+			},
+		)
+		result = client.get_transaction("550e8400-e29b-41d4-a716-446655440000")
+		assert result.financial_breakdown is not None
+		assert result.financial_breakdown.settlement_amount == 483.5
+		assert result.financial_breakdown.exchange_rate == 49.55
 
 
 class TestListTransactions:

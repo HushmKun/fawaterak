@@ -453,6 +453,48 @@ class TestEventFromDictEdgeCases:
 		)
 		assert event.transaction_id == 12345
 
+	def test_paid_event_settlement_fields(self) -> None:
+		event = PaidWebhookEvent.from_dict(
+			{
+				"transaction_key": "550e8400-e29b-41d4-a716-446655440000",
+				"transaction_id": 12345,
+				"payment_method": "Visa-Mastercard",
+				"status": "paid",
+				"fees": "3.50",
+				"cardDiscountAmount": "5.00",
+				"discountBankCode": "NBE",
+				"paymentToken": "UFZiaC98572rKZGZ",
+				"financial_breakdown": {
+					"original_amount": 100,
+					"original_currency": "EGP",
+					"fees": 3.5,
+					"fees_currency": "EGP",
+					"settlement_amount": 96.5,
+					"settlement_currency": "EGP",
+				},
+			}
+		)
+		assert event.fees == "3.50"
+		assert event.card_discount_amount == "5.00"
+		assert event.discount_bank_code == "NBE"
+		assert event.payment_token == "UFZiaC98572rKZGZ"
+		assert event.financial_breakdown is not None
+		assert event.financial_breakdown.settlement_amount == 96.5
+		assert event.financial_breakdown.converted_amount is None
+
+	def test_paid_event_pending_has_no_settlement_fields(self) -> None:
+		event = PaidWebhookEvent.from_dict(
+			{
+				"transaction_key": "550e8400-e29b-41d4-a716-446655440000",
+				"transaction_id": 12345,
+				"payment_method": "Fawry",
+				"status": "pending",
+			}
+		)
+		assert event.fees is None
+		assert event.payment_token is None
+		assert event.financial_breakdown is None
+
 	def test_paid_event_none_invoice_status(self) -> None:
 		event = PaidWebhookEvent.from_dict(
 			{

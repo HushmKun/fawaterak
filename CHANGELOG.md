@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `FinancialBreakdown` model for the API's settlement breakdown: original,
+  converted and settled amounts, exchange rate, and fees.
+- `TransactionData.financial_breakdown`, parsed from `getTransactionData`
+  (`None` until the payment is settled).
+- `PaidWebhookEvent` now keeps the paid-webhook fields it used to drop:
+  `fees`, `card_discount_amount`, `discount_bank_code`, `payment_token` and
+  `financial_breakdown`. All default to `None`, so existing code that builds
+  these objects keeps working.
+
 ## [0.5.3] - 2026-10-21
 
 ### Fixed

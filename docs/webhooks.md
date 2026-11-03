@@ -41,6 +41,12 @@ def handle_paid_webhook():
 	return "OK", 200
 ```
 
+Paid webhooks also carry `fees`, `card_discount_amount`, `discount_bank_code`,
+`payment_token` and, once the payment is settled, `financial_breakdown`
+(a `FinancialBreakdown` with the original, converted, fee and settlement
+amounts). Each is `None` when the payload omits it, for example on a
+pending webhook.
+
 ### Django
 
 ```python

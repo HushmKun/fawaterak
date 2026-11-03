@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from ..models.transaction import FinancialBreakdown
+
 
 @dataclass(frozen=True)
 class PaidWebhookEvent:
@@ -15,6 +17,7 @@ class PaidWebhookEvent:
 	`status`) and legacy invoice-style fields (`invoice_key`, `invoice_id`,
 	`invoice_status`).
 	Both field sets are optional because a given payload carries one or the other.
+	`financial_breakdown` is only present on paid webhooks after settlement.
 	Webhook body encoding (json, x-www-form-urlencoded), to force json add `_json`
 	to the end of the webhook url.
 
@@ -34,6 +37,11 @@ class PaidWebhookEvent:
 	paid_at: str | None
 	reference_number: str | None
 	customer_data: dict[str, Any] | None
+	fees: str | None = None
+	card_discount_amount: str | None = None
+	discount_bank_code: str | None = None
+	payment_token: str | None = None
+	financial_breakdown: FinancialBreakdown | None = None
 
 	@classmethod
 	def from_dict(cls, data: dict[str, Any]) -> PaidWebhookEvent:
@@ -57,6 +65,13 @@ class PaidWebhookEvent:
 			paid_at=data.get("paidAt"),
 			reference_number=data.get("referenceNumber"),
 			customer_data=data.get("customerData"),
+			fees=data.get("fees"),
+			card_discount_amount=data.get("cardDiscountAmount"),
+			discount_bank_code=data.get("discountBankCode"),
+			payment_token=data.get("paymentToken"),
+			financial_breakdown=FinancialBreakdown.from_optional(
+				data.get("financial_breakdown")
+			),
 		)
 
 
